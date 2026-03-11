@@ -1,4 +1,5 @@
 // ── DRAW FUNCTIONS ────────────────────────────────────────────────────────────
+let engineTick = 0; // frame counter for engine flame animation
 function drawShipShape(c, x,y,angle,size,color,shield) {
   c.save(); c.translate(x,y); c.rotate(angle+Math.PI/2);
   if(shield>0){
