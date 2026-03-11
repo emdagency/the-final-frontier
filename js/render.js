@@ -66,11 +66,10 @@ function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
         const fW   = FLAME_CFG.widthBase * thrustMag;
         ctx.save();
         ctx.translate(nz.x, nz.y);
-        // Flame gradient: hot white-blue core → transparent tail
+        // Flame gradient: hot blue-white core → transparent tip
         const grad = ctx.createLinearGradient(0, 0, 0, fLen);
-        grad.addColorStop(0,   FLAME_CFG.colors[0]);   // core
-        grad.addColorStop(0.35, FLAME_CFG.colors[1]);  // mid
-        grad.addColorStop(1,   FLAME_CFG.colors[2]);   // tip
+        grad.addColorStop(0,   FLAME_CFG.colorInner);
+        grad.addColorStop(1,   FLAME_CFG.colorOuter);
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.moveTo(-fW * 0.5, 0);
@@ -83,7 +82,7 @@ function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
     }
   }
 
-  // ── Retro thruster glows (when braking or reverse) ────────────────────────
+  // ── Retro thruster glows (when braking) ──────────────────────────────────
   if (thrustMag >= 0.35) {
     const isBraking = (thrustMag < 1);
     if (isBraking) {
@@ -91,9 +90,8 @@ function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
         ctx.save();
         ctx.translate(rt.x, rt.y);
         const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, RETRO_CFG.radius * 2.2);
-        glow.addColorStop(0,   RETRO_CFG.colors[0]);
-        glow.addColorStop(0.5, RETRO_CFG.colors[1]);
-        glow.addColorStop(1,   RETRO_CFG.colors[2]);
+        glow.addColorStop(0,   RETRO_CFG.colorInner);
+        glow.addColorStop(1,   RETRO_CFG.colorOuter);
         ctx.fillStyle = glow;
         ctx.beginPath();
         ctx.arc(0, 0, RETRO_CFG.radius * 2.2, 0, Math.PI * 2);
