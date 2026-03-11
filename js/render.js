@@ -38,6 +38,93 @@ function drawCentaurianShip(c, x, y, angle, st, shield) {
   c.restore();
 }
 
+// ── PLAYER SHIP SPRITE RENDERING ─────────────────────────────────────────────
+// Loads SHIP_B64 once, then draws sprite + engine flames + retro thruster glows.
+
+let _playerImg = null;
+let _playerImgReady = false;
+(function() {
+  const img = new Image();
+  img.onload = () => { _playerImg = img; _playerImgReady = true; };
+  img.src = SHIP_B64;
+})();
+
+function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  // ── Engine flames (rear nozzles) ─────────────────────────────────────────
+  if (thrustMag > 0) {
+    const isBraking = (thrustMag < 1);
+    if (!isBraking) {
+      // Forward thrust — animated flame plumes from each nozzle
+      NOZZLES.forEach(nz => {
+        const flicker = 1 + (Math.sin(tick * 0.7 + nz.x) * 0.5) * FLAME_CFG.flickerAmp / FLAME_CFG.length;
+        const fLen = FLAME_CFG.length * thrustMag * flicker;
+        const fW   = FLAME_CFG.widthBase * thrustMag;
+        ctx.save();
+        ctx.translate(nz.x, nz.y);
+        // Flame gradient: hot white-blue core → transparent tail
+        const grad = ctx.createLinearGradient(0, 0, 0, fLen);
+        grad.addColorStop(0,   FLAME_CFG.colors[0]);   // core
+        grad.addColorStop(0.35, FLAME_CFG.colors[1]);  // mid
+        grad.addColorStop(1,   FLAME_CFG.colors[2]);   // tip
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(-fW * 0.5, 0);
+        ctx.quadraticCurveTo(-fW * 0.25, fLen * 0.6, 0, fLen);
+        ctx.quadraticCurveTo( fW * 0.25, fLen * 0.6, fW * 0.5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+  }
+
+  // ── Retro thruster glows (when braking or reverse) ────────────────────────
+  if (thrustMag >= 0.35) {
+    const isBraking = (thrustMag < 1);
+    if (isBraking) {
+      RETRO_THRUSTERS.forEach(rt => {
+        ctx.save();
+        ctx.translate(rt.x, rt.y);
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, RETRO_CFG.radius * 2.2);
+        glow.addColorStop(0,   RETRO_CFG.colors[0]);
+        glow.addColorStop(0.5, RETRO_CFG.colors[1]);
+        glow.addColorStop(1,   RETRO_CFG.colors[2]);
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, RETRO_CFG.radius * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+  }
+
+  // ── Ship sprite ───────────────────────────────────────────────────────────
+  if (_playerImgReady) {
+    const hw = SHIP_RENDER_W / 2;
+    const hh = SHIP_RENDER_H / 2;
+    ctx.drawImage(_playerImg, -hw, -hh, SHIP_RENDER_W, SHIP_RENDER_H);
+  } else {
+    // Fallback: simple triangle while image loads
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(18, 22);
+    ctx.lineTo(0, 14);
+    ctx.lineTo(-18, 22);
+    ctx.closePath();
+    ctx.fillStyle = "#0d1520";
+    ctx.fill();
+    ctx.strokeStyle = "#00ffdd";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 function drawPlanet(c,x,y,r,color) {
   // Atmosphere glow
   const g=c.createRadialGradient(x,y,r*0.7,x,y,r*1.8);
@@ -439,9 +526,23 @@ function tick(now) {
   if ((input.firing || keys[" "]) && player.shootCooldown <= 0) {
     player.shootCooldown = 10;
     playLaser();
-    bullets.push({ id:mkid(), x:player.x, y:player.y,
-      vx: hx*13 + player.vx, vy: hy*13 + player.vy,
-      life:55, owner:"player", color:"#00ffdd" });
+    // Twin wing guns — fire simultaneously with slight inward convergence
+    const cosA = Math.cos(player.angle);
+    const sinA = Math.sin(player.angle);
+    [WEAPON_PORTS.left_wing, WEAPON_PORTS.right_wing].forEach((port, i) => {
+      // Rotate port offset into world space
+      const wx = cosA * port.x - sinA * port.y;
+      const wy = sinA * port.x + cosA * port.y;
+      // Left gun converges right, right gun converges left
+      const conv = (i === 0) ? WING_GUN_CONVERGENCE : -WING_GUN_CONVERGENCE;
+      const shotAngle = player.angle + conv;
+      const shx = Math.cos(shotAngle - Math.PI/2);
+      const shy = Math.sin(shotAngle - Math.PI/2);
+      bullets.push({ id:mkid(),
+        x: player.x + wx, y: player.y + wy,
+        vx: shx*13 + player.vx, vy: shy*13 + player.vy,
+        life:55, owner:"player", color:"#00ffdd" });
+    });
   }
 
   // Enemies
@@ -991,13 +1092,13 @@ function tick(now) {
     ctx.save();
     ctx.strokeStyle = "rgba(255,140,40,0.65)";
     ctx.lineWidth = 1.5; ctx.setLineDash([2,4]);
-    ctx.beginPath(); ctx.arc(W2/2, H2/2, 40, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W2/2, H2/2, SHIP_RENDER_H * 0.55, 0, Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
   }
 
   // Shield ring drawn on top
   if (player.shield > 0) {
-    ctx.beginPath(); ctx.arc(W2/2, H2/2, 32, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(W2/2, H2/2, SHIP_RENDER_H * 0.5, 0, Math.PI*2);
     ctx.strokeStyle=`rgba(100,180,255,${clamp(player.shield/120,0,0.6)})`;
     ctx.lineWidth=2; ctx.stroke();
   }
