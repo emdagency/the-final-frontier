@@ -9,9 +9,13 @@ function dockShip(){
 }
 
 function enterDock(){
+  gameMode="station";
+  if(typeof setThruster==="function") setThruster(0);
   player.vx=0; player.vy=0;
   player.shield=player.maxShield;
   document.getElementById("ui").classList.add("docked");
+  if(typeof checkMissionCompletion==="function") checkMissionCompletion(systemKey);
+  if(typeof refreshMissions==="function") refreshMissions(systemKey);
   document.getElementById("stationscreen").classList.add("active");
   hubOpen(null);
   saveCurrentPilot("dock");
@@ -23,6 +27,9 @@ function launchShip(){
   document.getElementById("stationscreen").classList.remove("active");
   document.getElementById("ui").classList.remove("docked");
   state.dockedAt=null;
+  gameMode="flight";
+  updateHUD();
+  saveCurrentPilot("launch");
 }
 
 // ── HUB MAIN SCREEN ──────────────────────────────────────────────────────────
@@ -52,7 +59,7 @@ function hubOpen(panel){
   updateHeaderRepairButtons();
 
   // Show/hide panels
-  ["hangar","trading","missions","shipyard"].forEach(p=>{
+  ["hangar","trading","missions","shipyard","factions"].forEach(p=>{
     document.getElementById("hub-panel-"+p).style.display = panel===p ? "flex" : "none";
   });
   document.getElementById("hub-main").style.display = panel ? "none" : "flex";
@@ -66,6 +73,11 @@ function hubOpen(panel){
     if(panel==="missions") renderMissions();
     if(panel==="trading") renderTrading();
     if(panel==="shipyard") renderShipyard();
+    if(panel==="factions") renderFactions();
+  } else {
+    // HUB landing — highlight the HUB button
+    const homeBtn=document.getElementById("hub-nav-home");
+    if(homeBtn) homeBtn.classList.add("active");
   }
 }
 
@@ -391,17 +403,6 @@ function renderMissions(){
     });
   }
 
-  // Reputation
-  html+=`<div class="mc-section-title" style="margin-top:24px">FACTION STANDING</div><div class="rep-grid">`;
-  Object.entries(state.reputation).forEach(([f,v])=>{
-    let status="NEUTRAL",sc="#8899aa";
-    if(v<=REP_ENEMY_THRESHOLD){sc="#ff2222";status="ENEMY";}
-    else if(v<=REP_HOSTILE_THRESHOLD){sc="#ff6644";status="HOSTILE";}
-    else if(v>10){sc="#4aff9a";status="FRIENDLY";}
-    html+=`<div class="rep-item"><span style="color:${FACTION_COLORS[f]||"#aaa"}">${f.toUpperCase()}</span><span style="color:${sc}">${v>0?"+":""}${v} · ${status}</span></div>`;
-  });
-  html+=`</div>`;
-
   el.innerHTML=html;
 }
 
@@ -416,7 +417,60 @@ function completeMissionNow(){
   document.getElementById("hub-credits").textContent=state.credits.toLocaleString()+" Cr";
 }
 
-// ── TRADING (STUB) ────────────────────────────────────────────────────────────
+// ── FACTIONS ─────────────────────────────────────────────────────────────────
+
+function renderFactions(){
+  const el=document.getElementById("factions-content");
+  const sysFaction=SYSTEMS[systemKey].faction;
+  let html=`
+    <div class="hub-back-bar">
+      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
+      <span class="hub-breadcrumb">HUB <span>/ FACTIONS</span></span>
+    </div>
+    <div class="factions-grid">
+  `;
+
+  Object.entries(state.reputation).forEach(([faction, rep])=>{
+    let statusLabel="NEUTRAL", statusColor="#8899aa", statusDesc="No standing established.";
+    if(rep<=REP_ENEMY_THRESHOLD){
+      statusLabel="ENEMY"; statusColor="#ff2222";
+      statusDesc="This faction will attack you on sight.";
+    } else if(rep<=REP_HOSTILE_THRESHOLD){
+      statusLabel="HOSTILE"; statusColor="#ff6644";
+      statusDesc="This faction is suspicious of you. Patrols may attack.";
+    } else if(rep>30){
+      statusLabel="ALLIED"; statusColor="#4aff9a";
+      statusDesc="This faction considers you a trusted ally.";
+    } else if(rep>10){
+      statusLabel="FRIENDLY"; statusColor="#4aff9a";
+      statusDesc="This faction looks favourably upon you.";
+    }
+
+    const isCurrent = faction===sysFaction;
+    const barPct = Math.round(Math.min(Math.max((rep+100)/200,0),1)*100);
+    const factionColor = FACTION_COLORS[faction]||"#aaaaaa";
+    const ownedCount = Object.values(state.ownedStations||{}).filter(v=>v===faction).length;
+
+    html+=`
+      <div class="faction-card${isCurrent?" current-faction":""}">
+        <div class="fc-header">
+          <div class="fc-name" style="color:${factionColor}">${faction.toUpperCase()}</div>
+          <div class="fc-status" style="color:${statusColor}">${statusLabel}</div>
+        </div>
+        ${isCurrent?`<div class="fc-location-badge">◆ CURRENT SYSTEM</div>`:""}
+        <div class="fc-rep-bar-wrap">
+          <div class="fc-rep-bar" style="width:${barPct}%;background:${statusColor}44;border-right:2px solid ${statusColor}"></div>
+        </div>
+        <div class="fc-rep-num" style="color:${statusColor}">${rep>0?"+":""}${rep}</div>
+        <div class="fc-desc">${statusDesc}</div>
+        ${ownedCount>0?`<div class="fc-owned">★ ${ownedCount} OWNED STATION${ownedCount!==1?"S":""}</div>`:""}
+      </div>
+    `;
+  });
+
+  html+=`</div>`;
+  el.innerHTML=html;
+}
 
 function renderTrading(){
   document.getElementById("trading-content").innerHTML=`
@@ -556,8 +610,13 @@ function triggerJumpEffect(destKey, jumps){
     state.fuel -= jumps;
     systemKey = destKey;
     initWorld(destKey, true);
-    checkMissionCompletion && checkMissionCompletion(destKey);
-    refreshMissions(destKey);
+    if(typeof checkMissionCompletion==="function") checkMissionCompletion(destKey);
+    if(typeof refreshMissions==="function") refreshMissions(destKey);
+    // Ensure we're in flight mode
+    document.getElementById("stationscreen").classList.remove("active");
+    document.getElementById("ui").classList.remove("docked");
+    state.dockedAt = null;
+    gameMode = "flight";
     updateHUD();
     _plottedRoute = null;
   }, 1400);
@@ -697,11 +756,10 @@ function renderGalaxyMap(){
 
 function hubMainMenu(){
   saveCurrentPilot("manual");
-  // Close dock screen
   document.getElementById("stationscreen").classList.remove("active");
   document.getElementById("ui").classList.remove("docked");
   state.dockedAt = null;
-  // Show start screen
+  gameMode = "menu";
   document.getElementById("startscreen").style.display = "flex";
   showToast("✓ Game saved.");
 }
