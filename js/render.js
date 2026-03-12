@@ -82,8 +82,9 @@ function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
     }
   }
 
-  // ── Retro thruster glows (when braking) ──────────────────────────────────
-  if (thrustMag >= 0.35) {
+  // ── Retro thruster glows (when braking and ship has velocity) ─────────────
+  const velMag = Math.hypot(player.vx, player.vy);
+  if (thrustMag >= 0.35 && velMag > 0.15) {
     const isBraking = (thrustMag < 1);
     if (isBraking) {
       RETRO_THRUSTERS.forEach(rt => {
