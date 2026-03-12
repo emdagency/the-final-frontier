@@ -59,6 +59,10 @@ js/
 - Main loop: `gameLoop()` → `update()` → `draw()`
 - Draw order: stars → asteroids → station → planet → enemies → player → bullets → particles → HUD
 - Asteroid system uses pre-rendered offscreen canvases (`ASTEROID_VISUAL_DEFS`)
+- Station sprite uses **`screen` blend mode** (same as player ship) — black background PNG, no alpha needed
+- Station renders at 200×200px in all systems (not just `sol`)
+- Velocity arrow indicator has been removed
+- Retro thruster visuals have been removed (data still exists in `player.js` for future use)
 
 ### UI Screens (ui.js)
 - `dockShip()` / `undockShip()` — station docking flow
@@ -71,6 +75,9 @@ js/
 
 ### Add a new star system
 Edit `SYSTEMS` in `data.js`. Add key with `{name, x, y, faction, desc, neighbors[]}`.
+
+### Fix a system's planet/station positions
+Edit `FIXED_LAYOUTS` in `engine.js` (inside `initWorld()`). Add an entry keyed by system key with `planetX`, `planetY`, `planetR`, `stationX`, `stationY`. Systems not in `FIXED_LAYOUTS` get random positions that are saved per-save. Currently fixed: `sol` (Alpha Centauri).
 
 ### Tweak enemy stats
 Edit `SHIP_TYPES` in `data.js`. Adjust `maxHull`, `maxShield`, `speed`, `damage`.
@@ -133,7 +140,7 @@ The player ship sprite is a base64-encoded PNG string embedded directly in `js/s
 
 Key constants in `player.js`:
 - `SHIP_B64` — the base64 image string
-- `SHIP_RENDER_H / SHIP_RENDER_W` — render size in pixels (currently 120×120)
+- `SHIP_RENDER_H / SHIP_RENDER_W` — render size in pixels (currently 80×80)
 - `NOZZLES[]` — positions of rear engine nozzles (for flame effects), relative to ship center in render space
 - `RETRO_THRUSTERS[]` — positions of wing retro thrusters (for brake glow)
 - `WEAPON_PORTS{}` — positions of gun hardpoints; `defaultEquipped: true` means active from the start
@@ -179,13 +186,20 @@ with open("js/sprites/player.js", "w") as f:
 3. After changing `player.js`, bump the cache-bust version in `index.html`:
 ```html
 <!-- Change ?v=N to the next number each time player.js is updated -->
-<script src="js/sprites/player.js?v=5"></script>
+<script src="js/sprites/player.js?v=9"></script>
 ```
 This forces all browsers and devices to fetch the new file immediately.
 
 **Important:** PNG transparency is NOT required because `render.js` uses `screen` blend mode. A black background PNG works fine and is easier to produce.
 
-**Do NOT use JPEG** — JPEG compression artifacts create visible fringes at blend time. Always use PNG.
+### Replacing the station sprite
+The station sprite works identically to the player ship — black background PNG, `screen` blend mode. Use the `patch_station.py` workflow:
+1. Process new PNG (flood-fill background removal + resize to 512×512 Lanczos)
+2. Generate a new `patch_station.py` via Claude with the new image
+3. Run `python3 patch_station.py` from repo root — it replaces `STATION_B64` in `js/sprites/environment.js`
+4. Push `environment.js` to GitHub
+
+**Do NOT use JPEG** for the station sprite — same reason as player ship (compression artifacts).
 
 ### Nozzle / weapon port offsets
 Offsets in `player.js` are in **render space** (pixels, relative to ship center at 0,0, with ship pointing up). To recalculate offsets for a new sprite:
