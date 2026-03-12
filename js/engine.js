@@ -20,23 +20,14 @@ function buildSaveData() {
   return {
     systemKey,
     player: { hull:player.hull, maxHull:player.maxHull, shield:player.shield, maxShield:player.maxShield,
-              speed:player.speed, turnRate:player.turnRate, thrust:player.thrust, shipType:player.shipType,
-              equippedWeapons: player.equippedWeapons ? [...player.equippedWeapons] : [] },
+              speed:player.speed, turnRate:player.turnRate, thrust:player.thrust, shipType:player.shipType },
     state: JSON.parse(JSON.stringify(state)),
   };
 }
 function loadSaveData(data) {
   if (!data) return;
   systemKey = data.systemKey || "sol";
-  if (data.player) {
-    Object.assign(player, data.player);
-    // Ensure equippedWeapons is always a valid array after load
-    if (!Array.isArray(player.equippedWeapons) || player.equippedWeapons.length === 0) {
-      player.equippedWeapons = Object.entries(WEAPON_PORTS)
-        .filter(([,p]) => p.defaultEquipped)
-        .map(([key]) => key);
-    }
-  }
+  if (data.player) Object.assign(player, data.player);
   if (data.state) Object.assign(state, data.state);
 }
 function saveCurrentPilot(reason) {
@@ -127,11 +118,6 @@ function resetToFreshState() {
   player.shield = 30; player.maxShield = 30;
   player.speed = 3.2; player.turnRate = 0.07; player.thrust = 0.18;
   player.shipType = "Shuttle";
-  player.shootCooldown = 0;
-  // Reset weapons — wing guns default, nose cannon locked until purchased
-  player.equippedWeapons = Object.entries(WEAPON_PORTS)
-    .filter(([,p]) => p.defaultEquipped)
-    .map(([key]) => key);
   state.credits = 5000; state.fuel = 10; state.maxFuel = 10;
   state.kills = 0;
   state.reputation = {federation:0,rebel:0,pirate:0,centaurian:0,neutral:0};
@@ -187,11 +173,6 @@ const player = {
   hull:100, maxHull:100, shield:30, maxShield:30,
   speed:3.2, turnRate:0.07, thrust:0.18,
   shipType:"Shuttle", shootCooldown:0,
-  // Weapon slots — keys match WEAPON_PORTS entries in player.js
-  // Wing guns are default-equipped; forward nose is a purchasable upgrade
-  equippedWeapons: Object.entries(WEAPON_PORTS)
-    .filter(([,p]) => p.defaultEquipped)
-    .map(([key]) => key),
 };
 const state = {
   credits:5000, fuel:10, maxFuel:10,
@@ -320,13 +301,22 @@ function initWorld(sk, spawnAtEdge) {
   if (!state.systemContents) state.systemContents = {};
   let contents = state.systemContents[sk];
 
+  // Fixed positions for known systems — ensures layout is always the same
+  const FIXED_LAYOUTS = {
+    sol: { planetX: WORLD/2+420, planetY: WORLD/2-310, planetR: 110,
+           stationX: WORLD/2-180, stationY: WORLD/2+140 },
+  };
+
   if (!contents) {
-    // Generate new positions for this system
-    contents = {
-      planetX: WORLD/2+rand(-600,600), planetY: WORLD/2+rand(-600,600),
-      planetR: sk==="sol" ? 110 : rand(70,140),
-      stationX: WORLD/2+rand(-250,250), stationY: WORLD/2+rand(-250,250),
-    };
+    if (FIXED_LAYOUTS[sk]) {
+      contents = { ...FIXED_LAYOUTS[sk] };
+    } else {
+      contents = {
+        planetX: WORLD/2+rand(-600,600), planetY: WORLD/2+rand(-600,600),
+        planetR: rand(70,140),
+        stationX: WORLD/2+rand(-250,250), stationY: WORLD/2+rand(-250,250),
+      };
+    }
     state.systemContents[sk] = contents;
   }
 
