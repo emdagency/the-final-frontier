@@ -105,7 +105,11 @@ function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
   if (_playerImgReady) {
     const hw = SHIP_RENDER_W / 2;
     const hh = SHIP_RENDER_H / 2;
+    // 'screen' blend mode eliminates pure black pixels at draw time —
+    // works even if the PNG has no alpha channel / opaque black background
+    ctx.globalCompositeOperation = "screen";
     ctx.drawImage(_playerImg, -hw, -hh, SHIP_RENDER_W, SHIP_RENDER_H);
+    ctx.globalCompositeOperation = "source-over";
   } else {
     // Fallback: simple triangle while image loads
     ctx.beginPath();
