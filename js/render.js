@@ -82,25 +82,7 @@ function drawPlayerShip(ctx, x, y, angle, thrustMag, tick) {
     }
   }
 
-  // ── Retro thruster glows (when braking and ship has velocity) ─────────────
-  const velMag = Math.hypot(player.vx, player.vy);
-  if (thrustMag >= 0.35 && velMag > 0.15) {
-    const isBraking = (thrustMag < 1);
-    if (isBraking) {
-      RETRO_THRUSTERS.forEach(rt => {
-        ctx.save();
-        ctx.translate(rt.x, rt.y);
-        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, RETRO_CFG.radius * 2.2);
-        glow.addColorStop(0,   RETRO_CFG.colorInner);
-        glow.addColorStop(1,   RETRO_CFG.colorOuter);
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(0, 0, RETRO_CFG.radius * 2.2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      });
-    }
-  }
+  // Retro thruster visuals removed
 
   // ── Ship sprite ───────────────────────────────────────────────────────────
   if (_playerImgReady) {
@@ -1057,36 +1039,7 @@ function tick(now) {
   setThruster(thrustMag);
   drawPlayerShip(ctx, W2/2, H2/2, player.angle, thrustMag, engineTick);
 
-  // Velocity vector indicator — shows drift direction
-  const velSpd = Math.hypot(player.vx, player.vy);
-  if (velSpd > 0.4) {
-    const vax = player.vx/velSpd, vay = player.vy/velSpd;
-    const vlen = Math.min(velSpd * 10, 44);
-    ctx.save();
-    ctx.strokeStyle = braking ? "rgba(255,160,60,0.85)" : "rgba(0,255,200,0.5)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4,4]);
-    ctx.beginPath();
-    ctx.moveTo(W2/2, H2/2);
-    ctx.lineTo(W2/2 + vax*vlen, H2/2 + vay*vlen);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // Arrowhead
-    ctx.fillStyle = braking ? "rgba(255,160,60,0.85)" : "rgba(0,255,200,0.6)";
-    ctx.beginPath();
-    const ax = W2/2 + vax*vlen, ay = H2/2 + vay*vlen;
-    const perp = Math.atan2(vay, vax);
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - Math.cos(perp-0.4)*6, ay - Math.sin(perp-0.4)*6);
-    ctx.lineTo(ax - Math.cos(perp+0.4)*6, ay - Math.sin(perp+0.4)*6);
-    ctx.closePath(); ctx.fill();
-    // Speed label
-    ctx.fillStyle = "rgba(0,255,200,0.4)";
-    ctx.font = "8px 'Courier New'";
-    ctx.textAlign = "center";
-    ctx.fillText((velSpd).toFixed(1), W2/2 + vax*(vlen+10), H2/2 + vay*(vlen+10));
-    ctx.restore();
-  }
+  // Velocity vector indicator removed
 
   // Strafe indicator — show lateral thrust visually
   // (no strafe indicator needed)
