@@ -8,43 +8,55 @@
 
 A browser-based 2D space game. Single HTML/CSS/JS project, no build tools, no frameworks. Runs directly in browser via GitHub Pages.
 
-**GitHub Pages URL:** `https://[your-username].github.io/the-final-frontier/`
+**GitHub Pages URL:** `https://emdagency.github.io/the-final-frontier/`
 
 ---
 
 ## File Structure
 
 ```
-index.html              ← HTML shell only (6KB) — rarely needs editing
-styles.css              ← All CSS (16KB)
+index.html              ← HTML shell + all hub/dock CSS (inline <style>) — changes frequently
+styles.css              ← In-flight HUD CSS, galaxy map, start screen CSS
 js/
-  audio.js              ← Web Audio thruster + SFX engine (6KB)
-  data.js               ← SYSTEMS, SHIP_TYPES, ENEMY_CFGS, ASTEROID_SIZES (6KB)
-  engine.js             ← State vars, save/load, canvas setup, world init (18KB)
-  render.js             ← Game loop, draw functions, asteroids, missions (44KB)
-  input.js              ← Keyboard, touch, event handlers (12KB)
-  ui.js                 ← Dock screen, galaxy map, shop (21KB)
+  audio.js              ← Web Audio thruster + SFX engine
+  data.js               ← SYSTEMS, SHIP_TYPES, ENEMY_CFGS, ASTEROID_SIZES
+  engine.js             ← State vars, save/load, canvas setup, world init
+  render.js             ← Game loop, draw functions, asteroids, missions
+  input.js              ← Keyboard, touch, event handlers, updateHUD(), showToast()
+  ui.js                 ← Hub screen, dock flow, galaxy map, jump system (v5)
   main.js               ← Boot only (< 1KB)
   sprites/
     centaurian.js       ← CENTAURIAN_B64 object: fighter/cruiser/frigate/capital (4.3MB)
-    player.js           ← SHIP_B64 string + NOZZLES + flame config (430KB)
+    player.js           ← SHIP_B64 string + NOZZLES + flame config (430KB) — ?v=9
     environment.js      ← PLANET_B64 + STATION_B64 strings (4.1MB)
 ```
 
-**Never upload sprite files to Claude** — they are huge base64 image blobs and will fill the context window. Only upload the JS files you actually need to edit.
+**Never upload sprite files to Claude** — they are huge base64 image blobs and will fill the context window.
+
+---
+
+## Current Cache-Bust Versions (index.html)
+
+| File | Version |
+|------|---------|
+| `js/sprites/player.js` | `?v=9` |
+| `js/sprites/environment.js` | *(no version)* |
+| `js/ui.js` | `?v=5` |
+
+Increment `?v=N` on any file that changes to force browser cache refresh.
 
 ---
 
 ## Key Variables & Architecture
 
 ### Global State (engine.js)
-- `player` — ship object: `{x, y, vx, vy, angle, hull, shield, maxHull, maxShield, speed, thrust, turnRate, shipType, credits, cargo}`
-- `state` — game flags: `{credits, reputation, missions[], kills, faction standings}`
+- `player` — ship object: `{x, y, vx, vy, angle, hull, shield, maxHull, maxShield, speed, thrust, turnRate, shipType, damage, mods{}}`
+- `state` — game flags: `{credits, fuel, maxFuel, reputation{}, missions[], activeMission, kills, ownedStations{}, cargo{}, storedShips[]}`
 - `systemKey` — current star system key (e.g. `"sol"`, `"vega"`)
 - `enemies[]`, `asteroids[]`, `bullets[]`, `particles[]` — live entity arrays
 
 ### Game Data (data.js)
-- `SYSTEMS` — 13 star systems with position, faction, neighbors
+- `SYSTEMS` — 13 star systems with `{name, x, y, faction, desc, neighbors[], hasShipyard?}`
 - `SHIP_TYPES` — player and enemy ship stat blocks
 - `CENTAURIAN_FLEET` — spawn weights for alien enemies
 - `ENEMY_CFGS` — faction-based enemy configurations
@@ -59,154 +71,274 @@ js/
 - Main loop: `gameLoop()` → `update()` → `draw()`
 - Draw order: stars → asteroids → station → planet → enemies → player → bullets → particles → HUD
 - Asteroid system uses pre-rendered offscreen canvases (`ASTEROID_VISUAL_DEFS`)
-- Station sprite uses **`screen` blend mode** (same as player ship) — black background PNG, no alpha needed
-- Station renders at 200×200px in all systems (not just `sol`)
-- Velocity arrow indicator has been removed
-- Retro thruster visuals have been removed (data still exists in `player.js` for future use)
+- Station sprite uses **`screen` blend mode** — black background PNG, no alpha needed
+- Station renders at **200×200px** in all systems
+- **Velocity arrow removed**
+- **Retro thruster visuals removed** (data still in `player.js` for future use)
 
-### UI Screens (ui.js)
-- `dockShip()` / `undockShip()` — station docking flow
-- `showGalaxyMap()` / `hideGalaxyMap()` — map overlay
-- `openShop()` — upgrade purchasing
+---
+
+## Hub UI System (ui.js + index.html)
+
+### Architecture
+The dock screen is a full-screen overlay (`#stationscreen`) that replaces the old card-based layout. It has three layers:
+
+1. **Background image layer** (`#hub-bg`) — faction/location-specific background photo (base64 embedded in CSS)
+2. **Header bar** — location name, faction, credits, hull bar, quick repair/refuel buttons
+3. **Navigation bar** — service tabs + Galaxy Map + Main Menu + Launch
+4. **Content area** — hub landing or one of four service panels
+
+### Hub Screen Flow
+```
+enterDock() → hubOpen(null)           ← shows hub landing with 4 service cards
+hubOpen('hangar')                     ← opens Hangar panel
+hubOpen('missions')                   ← opens Missions panel
+hubOpen('trading')                    ← opens Trading stub
+hubOpen('shipyard')                   ← opens Shipyard stub
+```
+
+### Navigation Structure
+- **Header**: always visible — location name, credits, hull bar, ⚙ REPAIR +30 / ⚙ FULL REPAIR / ⛽ REFUEL buttons
+- **Nav bar**: HANGAR · TRADING · MISSIONS · SHIPYARD | GALAXY MAP · MAIN MENU · ▶ LAUNCH
+- **Hangar tab bar**: ← HUB · CARGO BAY · MODIFICATIONS
+- **Back nav breadcrumb**: appears at top of every sub-panel (← HUB, ← HANGAR as appropriate)
+
+### Repair & Refuel
+- Always accessible from the header — no need to navigate to cargo bay
+- `doRepair('small')` / `doRepair('full')` — costs vary by planet (80/280 Cr) vs station (50/200 Cr)
+- `doRefuel()` — 30 Cr per jump, fills to `state.maxFuel`
+- `updateHeaderRepairButtons()` — call after any state change to refresh button disabled states
+
+### Hangar — Cargo Bay
+- Ship status row (ship type, hull, shield, fuel, kills)
+- Cargo hold inventory
+- Stored ships at this location with ⇄ BOARD SHIP button
+- `swapToStoredShip(idx)` — stores current ship here, boards selected ship
+- `state.storedShips[]` — array of `{shipType, hull, maxHull, shield, maxShield, speed, thrust, turnRate, damage, mods, locationKey}`
+
+### Hangar — Modifications
+- Left: ship card with top-down sprite (200×200 canvas, screen blend) + hull/shield/speed/damage bars
+- Right: flat list of 8 named module slots (COCKPIT, FORWARD WEAPON, LEFT WEAPON, RIGHT WEAPON, SCANNER, SHIELDS, ENGINES, AFTERBURNER) + 4 EXOTIC slots at bottom
+- Clicking a slot shows detail panel — installed mod info or "visit Shipyard" prompt
+- `player.mods{}` — keyed by slot ID (e.g. `"left_weapon"`, `"exotic_0"`)
+- `MOD_SLOTS[]` — slot definitions with `{id, label, side, desc}`
+- `SLOT_ICONS{}` — symbol per slot for the icon column
+
+### Missions Panel
+- Active mission shown at top (Complete button appears if at destination)
+- Available missions listed with Accept button
+- Faction reputation grid at bottom
+- `completeMissionNow()` — awards pay, clears active mission
+- `acceptMission(id)` — sets active mission
+
+### Background Images
+Backgrounds are base64-encoded JPEGs embedded directly in the `<style>` block of `index.html`:
+- **Hub shell** (`#hub-bg`): space station atrium — Alpha Centauri station
+- **Hangar panel** (`#hub-panel-hangar`): busy hangar bay with orange-suited workers
+- Both darkened to ~30–35% brightness with gradient overlay for UI readability
+- To replace: re-process image in Python (PIL, darken, resize), base64 encode, regex-replace the b64 string
+
+```python
+import base64, re
+from PIL import Image
+import numpy as np
+img = Image.open("new-bg.jpg").convert("RGB")
+arr = np.array(img).astype(float) * 0.32
+out = Image.fromarray(np.clip(arr,0,255).astype(np.uint8))
+out.save("new-bg-dark.jpg", "JPEG", quality=80)
+with open("new-bg-dark.jpg","rb") as f:
+    b64 = base64.b64encode(f.read()).decode()
+with open("index.html") as f:
+    html = f.read()
+# Replace in #hub-bg or #hub-panel-hangar rule
+html = re.sub(r"(#hub-panel-hangar \{[^}]*?url\('data:image/jpeg;base64,)[A-Za-z0-9+/=]+(')",
+              lambda m: m.group(1) + b64 + m.group(2), html, flags=re.DOTALL)
+with open("index.html","w") as f:
+    f.write(html)
+```
+
+### Ship Image in Modifications
+- `MODS_SHIP_B64` constant in `ui.js` — base64 PNG of the starter ship (top-down, black bg)
+- Loaded lazily via `getModsShipImg()` — returns a cached `Image` object
+- Drawn in `drawModsShip()` using `screen` blend mode on a 200×200 canvas
+- To replace: update `MODS_SHIP_B64` in `ui.js` with new base64 PNG
+
+---
+
+## Jump System (ui.js)
+
+### In-Flight Jump Flow
+1. Player opens Galaxy Map (`G` key or button), clicks a destination system
+2. If **in flight**: `plotRoute(destKey)` stores `_plottedRoute`, jump HUD appears at screen bottom
+3. `#jump-route-hud` shows destination + fuel cost, pulses blue
+4. Player presses **⬡ JUMP** → `executeJump()` → `triggerJumpEffect(destKey, jumps)`
+5. BSG-style jump effect (3.1 seconds total):
+   - **0–800ms**: "JUMP DRIVE SPOOLING" overlay fades in
+   - **800–1400ms**: Warning text + pulsing icon
+   - **1400ms**: Screen flashes white — system changes here, fuel deducted
+   - **1500–2600ms**: New system name fades in
+   - **2600–3100ms**: Overlay fades out, toast notification fires
+6. Player arrives via `initWorld(destKey, true)` — random edge of new system, in flight
+
+### Jumping from Dock
+- Galaxy map used while docked: `doJumpTo()` called directly — closes dock, runs same jump effect
+
+### Key Functions
+- `plotRoute(destKey)` — sets `_plottedRoute`, shows jump HUD
+- `cancelPlottedRoute()` — clears route, hides HUD button
+- `executeJump()` — validates fuel, calls `triggerJumpEffect()`
+- `triggerJumpEffect(destKey, jumps)` — full BSG animation + world transition
+- `doJumpTo(destKey, jumps)` — direct jump (from dock)
+- `getJumpPath(fromKey, toKey)` — BFS pathfinding through SYSTEMS neighbors graph
+- `getSystemJumpDistance(fromKey, toKey)` — returns jump count
+
+### Jump Overlay Elements (index.html)
+- `#warpoverlay` — full-screen white flash div
+- `#jump-effect-overlay` — blue radial gradient overlay with text lines
+- `#jet-line1/2/3` — text content updated during jump sequence
+- `#jump-route-hud` — in-flight jump button panel (bottom-center)
+
+---
+
+## Galaxy Map (ui.js)
+
+- `openGalaxyMap()` / `closeGalaxyMap()` — toggle map overlay
+- `renderGalaxyMap()` — draws systems and connections on `#galaxymapCanvas`
+- Current system: green dot + "◆ YOU ARE HERE"
+- Reachable neighbors: blue highlight, others: grey
+- Clicking a system: shows jump panel with path and fuel cost
+- Confirm → `plotRoute()` (in flight) or `doJumpTo()` (docked)
+
+---
+
+## Main Menu
+- `hubMainMenu()` — saves via `saveCurrentPilot("manual")`, closes dock, shows `#startscreen`
+- Allows pilot switching without page refresh
 
 ---
 
 ## Common Edit Tasks
 
 ### Add a new star system
-Edit `SYSTEMS` in `data.js`. Add key with `{name, x, y, faction, desc, neighbors[]}`.
+Edit `SYSTEMS` in `data.js`. Add key with `{name, x, y, faction, desc, neighbors[], hasShipyard?}`.
 
 ### Fix a system's planet/station positions
-Edit `FIXED_LAYOUTS` in `engine.js` (inside `initWorld()`). Add an entry keyed by system key with `planetX`, `planetY`, `planetR`, `stationX`, `stationY`. Systems not in `FIXED_LAYOUTS` get random positions that are saved per-save. Currently fixed: `sol` (Alpha Centauri).
+Edit `FIXED_LAYOUTS` in `engine.js` (inside `initWorld()`). Currently fixed: `sol` (Alpha Centauri).
+
+### Add a shipyard to a system
+Add `hasShipyard: true` to the system in `data.js`. The Shipyard panel checks this flag.
+
+### Change repair/refuel costs
+Edit `doRepair()`, `doRefuel()`, and `updateHeaderRepairButtons()` in `ui.js`.
+
+### Add a module slot
+Add to `MOD_SLOTS[]` in `ui.js` with `{id, label, side, desc}`. Add icon to `SLOT_ICONS{}`.
+
+### Add a stored ship (for testing)
+Push to `state.storedShips[]` with full ship data + `locationKey`.
 
 ### Tweak enemy stats
-Edit `SHIP_TYPES` in `data.js`. Adjust `maxHull`, `maxShield`, `speed`, `damage`.
-
-### Change spawn rates
-Edit `CENTAURIAN_FLEET` weights in `data.js`, or enemy spawn logic in `render.js` around the `// ── GAME LOOP` section.
+Edit `SHIP_TYPES` in `data.js`.
 
 ### Add a new mission type
-Edit `render.js` around `// ── MISSION SYSTEM` (~line 1708 in original).
-
-### Change station shop items
-Edit `ui.js` around `// ── DOCK / STATION` section.
-
-### Modify HUD / UI layout
-Edit `styles.css` or `index.html`.
+Edit `render.js` around `// ── MISSION SYSTEM`.
 
 ### Add new sound effect
-Edit `audio.js` — all audio uses Web Audio API (no external files).
-
-### Replace a sprite image
-- Convert new PNG to base64: `btoa(...)` or online tool
-- Replace the base64 string in the relevant `sprites/` file
-- Centaurian ships: `sprites/centaurian.js` — update the correct key in `CENTAURIAN_B64`
-- Player ship: `sprites/player.js` — replace `SHIP_B64` string
-- Planet/Station: `sprites/environment.js` — replace `PLANET_B64` or `STATION_B64`
-
----
-
-## Coding Conventions
-
-- Vanilla JS only — no imports, no modules, no bundler
-- All scripts load globally via `<script src="...">` tags in `index.html`
-- Variables shared across files are simply global (no module exports needed)
-- Canvas 2D context is `c` (the variable), canvas element is `gameCanvas`
-- `rand(a, b)` — utility for random float in range
-- `dist2(a, b)` — squared distance between two `{x,y}` objects
-- `mkid()` — generates unique entity IDs
-
----
-
-## What NOT to Do
-
-- ❌ Don't add `import`/`export` — this isn't a module project
-- ❌ Don't upload sprite files to Claude — they're too large
-- ❌ Don't introduce npm, webpack, or build tools
-- ❌ Don't add external CDN dependencies (keep it self-contained)
-
----
-
-## GitHub Pages
-
-Repo is deployed via GitHub Pages from the `main` branch root. After any commit, changes go live within ~30 seconds. No build step needed.
+Edit `audio.js` — Web Audio API only, no external files.
 
 ---
 
 ## Ship Sprite System (player.js)
 
-### How it works
-The player ship sprite is a base64-encoded PNG string embedded directly in `js/sprites/player.js`. It is loaded once at startup into an `Image` object and drawn each frame via `drawPlayerShip()` in `render.js`.
+### Key Constants
+- `SHIP_B64` — base64 PNG string (pure black background required)
+- `SHIP_RENDER_H / SHIP_RENDER_W` — **80×80px**
+- `NOZZLES[]` — rear engine nozzle positions for flame effects (render-space coords relative to ship center)
+- `RETRO_THRUSTERS[]` — wing retro positions (data kept, not drawn)
+- `WEAPON_PORTS{}` — gun hardpoints; `defaultEquipped: true` = active at game start
+- `FLAME_CFG` — flame appearance config
+- `WING_GUN_CONVERGENCE` — bullet toe-in angle (radians)
 
-Key constants in `player.js`:
-- `SHIP_B64` — the base64 image string
-- `SHIP_RENDER_H / SHIP_RENDER_W` — render size in pixels (currently 80×80)
-- `NOZZLES[]` — positions of rear engine nozzles (for flame effects), relative to ship center in render space
-- `RETRO_THRUSTERS[]` — positions of wing retro thrusters (for brake glow)
-- `WEAPON_PORTS{}` — positions of gun hardpoints; `defaultEquipped: true` means active from the start
-- `FLAME_CFG` — flame length, width, colors (`colorInner` / `colorOuter`), flicker amplitude
-- `RETRO_CFG` — retro glow radius and colors (`colorInner` / `colorOuter`)
-- `WING_GUN_CONVERGENCE` — bullet angle toe-in (radians)
+### Nozzle Positions (at 80px render size)
+```js
+NOZZLES = [
+  { x: -10.6, y: 33.5 },  // left engine
+  { x:  -0.1, y: 34.0 },  // center engine
+  { x: +10.7, y: 33.5 },  // right engine
+]
+```
 
-### How the ship is rendered (render.js)
-`drawPlayerShip()` draws in this order:
-1. Engine flame plumes (from `NOZZLES`) when thrusting
-2. Retro glow dots (from `RETRO_THRUSTERS`) when braking
-3. Ship sprite using **`screen` blend mode** to eliminate black background
+### Screen Blend Mode
+Both ship and station use `globalCompositeOperation = "screen"` to eliminate black backgrounds at draw time. **PNG required** (not JPEG — compression artifacts break the effect).
 
-The `screen` blend mode is critical — it mathematically eliminates pure black pixels at draw time, so the sprite does not need a transparent PNG. A black-background PNG works perfectly.
-
-### Replacing the ship sprite
-
-**Recommended workflow:**
-1. Source or create a ship image with a **pure black background** (black = `#000000`)
-2. Run this Python script to convert it to base64 and inject it into `player.js`:
-
+### Replacing the Ship Sprite
+1. Source image with **pure black background**
+2. Run patch script:
 ```python
 import base64, re
-
 with open("your-ship.png", "rb") as f:
-    png_bytes = f.read()
-
-data_uri = "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
-
+    data_uri = "data:image/png;base64," + base64.b64encode(f.read()).decode()
 with open("js/sprites/player.js") as f:
     content = f.read()
-
-new_content = re.sub(
-    r'(const SHIP_B64\s*=\s*")[^"]*(")',
-    lambda m: m.group(1) + data_uri + m.group(2),
-    content
-)
-
+content = re.sub(r'(const SHIP_B64\s*=\s*")[^"]*(")',
+                 lambda m: m.group(1) + data_uri + m.group(2), content)
 with open("js/sprites/player.js", "w") as f:
-    f.write(new_content)
+    f.write(content)
 ```
+3. Bump `?v=N` on the player.js `<script>` tag in `index.html`
 
-3. After changing `player.js`, bump the cache-bust version in `index.html`:
-```html
-<!-- Change ?v=N to the next number each time player.js is updated -->
-<script src="js/sprites/player.js?v=9"></script>
-```
-This forces all browsers and devices to fetch the new file immediately.
+### Replacing the Station Sprite
+Use `patch_station.py` workflow:
+1. Process PNG (flood-fill bg removal + 512×512 Lanczos resize)
+2. Run `python3 patch_station.py` from repo root
+3. Push `environment.js` to GitHub
 
-**Important:** PNG transparency is NOT required because `render.js` uses `screen` blend mode. A black background PNG works fine and is easier to produce.
+---
 
-### Replacing the station sprite
-The station sprite works identically to the player ship — black background PNG, `screen` blend mode. Use the `patch_station.py` workflow:
-1. Process new PNG (flood-fill background removal + resize to 512×512 Lanczos)
-2. Generate a new `patch_station.py` via Claude with the new image
-3. Run `python3 patch_station.py` from repo root — it replaces `STATION_B64` in `js/sprites/environment.js`
-4. Push `environment.js` to GitHub
+## Coding Conventions
 
-**Do NOT use JPEG** for the station sprite — same reason as player ship (compression artifacts).
+- Vanilla JS — no imports, no modules, no bundler
+- All scripts load globally via `<script src="...">` in `index.html`
+- Canvas 2D context is `c`, canvas element is `gameCanvas`
+- `rand(a, b)` — random float in range
+- `dist2(a, b)` — squared distance between `{x,y}` objects
+- `mkid()` — unique entity IDs
+- `showToast(msg)` — in-flight notification (defined in `input.js`)
+- `updateHUD()` — refreshes in-flight HUD (defined in `input.js`)
 
-### Nozzle / weapon port offsets
-Offsets in `player.js` are in **render space** (pixels, relative to ship center at 0,0, with ship pointing up). To recalculate offsets for a new sprite:
-- Ship renders at `SHIP_RENDER_H × SHIP_RENDER_W` pixels
-- Scale factor = `SHIP_RENDER_H / original_image_height`
-- Offset = `(pixel_position_in_source_image - image_center) × scale_factor`
+---
 
-### Cache busting
-Any time `player.js` is changed, increment the `?v=N` query string on its `<script>` tag in `index.html`. This is the only reliable way to force all browsers and devices (including mobile) to load the new version.
+## What NOT to Do
 
+- ❌ Don't add `import`/`export`
+- ❌ Don't upload sprite files to Claude
+- ❌ Don't introduce npm, webpack, or build tools
+- ❌ Don't add external CDN dependencies
+- ❌ Don't use JPEG for ship/station sprites (screen blend needs PNG)
+
+---
+
+## GitHub Pages
+
+Deployed from `main` branch root. Live ~30 seconds after commit. No build step.
+
+---
+
+## Pending / Planned Features
+
+- **Trading system** — buy/sell resources, tiered economy (common/rare/exotic/unique), supply/demand
+- **Shipyard** — buy ships + modules; only at `hasShipyard: true` systems
+- **Bullet spawn refactor** — iterate `player.equippedWeapons` instead of hardcoding wing ports
+- **Nose cannon upgrade** — add `"forward_weapon"` to `player.equippedWeapons` via shipyard
+- **Fixed layouts for other systems** — only `sol` fixed currently
+- **Per-faction hub backgrounds** — different images per faction/system type
+- **Module graphics** — small icons per module category for modification slots
+
+---
+
+## Save Data Notes
+
+- Pilots stored in `localStorage` keyed by pilot name
+- `state.storedShips[]` persists ship fleet across sessions
+- `state.cargo{}` persists cargo hold contents
+- Players with saves pre-dating `FIXED_LAYOUTS` need to clear save once to get fixed positions
