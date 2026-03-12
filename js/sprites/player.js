@@ -10,9 +10,9 @@ const SHIP_RENDER_W = 160;
 
 // Main engine nozzles at rear (relative to ship center, render space)
 const NOZZLES = [
-  { x: -12.7, y: 49.8 },  // left engine
-  { x:   0.0, y: 52.2 },  // center engine
-  { x: +12.7, y: 49.8 },  // right engine
+  { x: -19.1, y: 59.1 },  // left engine
+  { x:   0.0, y: 62.2 },  // center engine
+  { x: +19.1, y: 59.1 },  // right engine
 ];
 
 // Retro thrusters on wings (activate on brake/reverse)
