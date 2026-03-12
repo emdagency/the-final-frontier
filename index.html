@@ -386,6 +386,25 @@
   color:#4a9eff; text-align:center;
 }
 
+/* ── FACTIONS ────────────────────────────────────────────────────────────── */
+.factions-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px;
+}
+.faction-card {
+  background:rgba(8,15,26,0.88); border:1px solid #1a3050;
+  padding:16px; display:flex; flex-direction:column; gap:8px;
+}
+.faction-card.current-faction { border-color:#4a9eff44; background:rgba(10,20,40,0.92); }
+.fc-header { display:flex; justify-content:space-between; align-items:baseline; }
+.fc-name { font-size:13px; letter-spacing:2px; font-weight:bold; }
+.fc-status { font-size:9px; letter-spacing:2px; }
+.fc-location-badge { font-size:8px; letter-spacing:2px; color:#4a9eff; }
+.fc-rep-bar-wrap { height:3px; background:#0d1e30; border-radius:2px; overflow:visible; position:relative; }
+.fc-rep-bar { height:100%; position:absolute; left:0; top:0; min-width:2px; }
+.fc-rep-num { font-size:18px; letter-spacing:1px; }
+.fc-desc { font-size:10px; color:#4a6080; line-height:1.5; }
+.fc-owned { font-size:9px; letter-spacing:2px; color:#ffcc44; margin-top:4px; }
+
 /* ── SCROLLBAR ──────────────────────────────────────────────────────────── */
 #stationscreen ::-webkit-scrollbar { width:4px; }
 #stationscreen ::-webkit-scrollbar-track { background:#060c14; }
@@ -480,10 +499,12 @@
 
   <!-- Navigation bar -->
   <div id="hub-nav">
+    <button class="hub-nav-btn" id="hub-nav-home"     onclick="hubOpen(null)">⬡ HUB</button>
     <button class="hub-nav-btn" id="hub-nav-hangar"   onclick="hubOpen('hangar')">⬡ HANGAR</button>
     <button class="hub-nav-btn" id="hub-nav-trading"  onclick="hubOpen('trading')">⬡ TRADING</button>
     <button class="hub-nav-btn" id="hub-nav-missions" onclick="hubOpen('missions')">⬡ MISSIONS</button>
     <button class="hub-nav-btn" id="hub-nav-shipyard" onclick="hubOpen('shipyard')">⬡ SHIPYARD</button>
+    <button class="hub-nav-btn" id="hub-nav-factions" onclick="hubOpen('factions')">⬡ FACTIONS</button>
     <div id="hub-nav-spacer"></div>
     <button class="hub-nav-btn secondary" onclick="openGalaxyMap()">⬡ GALAXY MAP</button>
     <button class="hub-nav-btn secondary" onclick="hubMainMenu()">⬡ MAIN MENU</button>
@@ -546,6 +567,11 @@
   <!-- SHIPYARD PANEL -->
   <div id="hub-panel-shipyard" style="display:none">
     <div id="shipyard-content"></div>
+  </div>
+
+  <!-- FACTIONS PANEL -->
+  <div id="hub-panel-factions" style="display:none">
+    <div id="factions-content"></div>
   </div>
 
 </div>
@@ -612,7 +638,7 @@
 <script src="js/engine.js?v=2"></script>
 <script src="js/render.js?v=5"></script>
 <script src="js/input.js"></script>
-<script src="js/ui.js?v=5"></script>
+<script src="js/ui.js?v=6"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
