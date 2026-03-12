@@ -63,13 +63,11 @@ function drawPlanet(c,x,y,r,color) {
 function drawStationShape(c,x,y,color,stObj) {
   const owned = stObj && stObj.owned;
   const drawColor = owned ? "#4aff9a" : color;
-  if (stationSprite.complete && stationSprite.naturalWidth && !owned) {
-    const sw = 200, sh = 200;
+  if (systemKey==="sol" && stationSprite.complete && stationSprite.naturalWidth && !owned) {
+    const sw = 120, sh = 180;
     c.save();
     c.translate(x, y);
-    c.globalCompositeOperation = "screen";
     c.drawImage(stationSprite, -sw/2, -sh/2, sw, sh);
-    c.globalCompositeOperation = "source-over";
     // Subtle dock indicator dot
     c.beginPath();c.arc(0,0,4,0,Math.PI*2);
     c.fillStyle=drawColor;c.fill();
@@ -376,6 +374,7 @@ function checkBountyCompletion(killedFaction) {
 
 // ── GAME LOOP ─────────────────────────────────────────────────────────────────
 let lastTime=0;
+let engineTick=0;
 
 function tick(now) {
   const dt = Math.min((now-lastTime)/16.67,3);

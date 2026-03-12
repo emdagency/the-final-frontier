@@ -136,10 +136,6 @@ function renderCargo(){
   const entries=Object.entries(cargo).filter(([,qty])=>qty>0);
 
   let html=`
-    <div class="hub-back-bar">
-      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
-      <span class="hub-breadcrumb">HUB <span>/ HANGAR / CARGO BAY</span></span>
-    </div>
     <div class="cargo-ship-status">
       <div class="cargo-stat"><span class="cs-label">SHIP</span><span class="cs-val">${player.shipType||"Shuttle"}</span></div>
       <div class="cargo-stat"><span class="cs-label">HULL</span><span class="cs-val">${Math.ceil(player.hull)}/${player.maxHull}</span></div>
@@ -265,11 +261,6 @@ function renderMods(){
   }
 
   document.getElementById("hangar-mods-panel").innerHTML=`
-    <div class="hub-back-bar">
-      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
-      <button class="hub-back-btn" onclick="switchHangarTab('cargo')">← HANGAR</button>
-      <span class="hub-breadcrumb">HUB <span>/ HANGAR / MODIFICATIONS</span></span>
-    </div>
     <div class="mods-top-row">
       <div class="mods-ship-card">
         <div class="mods-ship-img-wrap">
@@ -357,10 +348,6 @@ function drawModsShip(){
 function renderMissions(){
   const el=document.getElementById("missions-content");
   let html=`
-    <div class="hub-back-bar">
-      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
-      <span class="hub-breadcrumb">HUB <span>/ MISSIONS</span></span>
-    </div>
   `;
 
   if(state.activeMission){
@@ -423,10 +410,6 @@ function renderFactions(){
   const el=document.getElementById("factions-content");
   const sysFaction=SYSTEMS[systemKey].faction;
   let html=`
-    <div class="hub-back-bar">
-      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
-      <span class="hub-breadcrumb">HUB <span>/ FACTIONS</span></span>
-    </div>
     <div class="factions-grid">
   `;
 
@@ -474,10 +457,6 @@ function renderFactions(){
 
 function renderTrading(){
   document.getElementById("trading-content").innerHTML=`
-    <div class="hub-back-bar">
-      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
-      <span class="hub-breadcrumb">HUB <span>/ TRADING POST</span></span>
-    </div>
     <div class="stub-panel">
       <div class="stub-icon">⬡</div>
       <div class="stub-title">TRADING POST</div>
@@ -490,10 +469,6 @@ function renderTrading(){
 function renderShipyard(){
   const has=SYSTEMS[systemKey].hasShipyard;
   document.getElementById("shipyard-content").innerHTML=`
-    <div class="hub-back-bar">
-      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
-      <span class="hub-breadcrumb">HUB <span>/ SHIPYARD</span></span>
-    </div>
     ` + (has?`
     <div class="stub-panel">
       <div class="stub-icon">🛸</div>
