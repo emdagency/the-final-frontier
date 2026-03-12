@@ -49,6 +49,8 @@ function hubOpen(panel){
   document.getElementById("hub-hull-bar").style.background =
     hullPct>60?"#4aff9a":hullPct>30?"#ffcc44":"#ff4444";
 
+  updateHeaderRepairButtons();
+
   // Show/hide panels
   ["hangar","trading","missions","shipyard"].forEach(p=>{
     document.getElementById("hub-panel-"+p).style.display = panel===p ? "flex" : "none";
@@ -65,6 +67,35 @@ function hubOpen(panel){
     if(panel==="trading") renderTrading();
     if(panel==="shipyard") renderShipyard();
   }
+}
+
+function updateHeaderRepairButtons(){
+  const isPlanet = state.dockedAt==="planet";
+  const cost1 = isPlanet?80:50, cost2 = isPlanet?280:200;
+  const fuelCost = 30;
+  const repSmall = document.getElementById("hdr-rep-small");
+  const repFull  = document.getElementById("hdr-rep-full");
+  const refuel   = document.getElementById("hdr-refuel");
+  if(!repSmall) return;
+  repSmall.textContent = `⚙ REPAIR +30  (${cost1} Cr)`;
+  repFull.textContent  = `⚙ FULL REPAIR  (${cost2} Cr)`;
+  refuel.textContent   = `⛽ REFUEL  (${fuelCost} Cr/jump)`;
+  repSmall.disabled = state.credits<cost1 || player.hull>=player.maxHull;
+  repFull.disabled  = state.credits<cost2 || player.hull>=player.maxHull;
+  refuel.disabled   = state.credits<fuelCost || state.fuel>=state.maxFuel;
+}
+
+function doRefuel(){
+  const fuelCost = 30;
+  const needed = state.maxFuel - state.fuel;
+  if(needed<=0 || state.credits<fuelCost){ return; }
+  const canAfford = Math.floor(state.credits/fuelCost);
+  const toAdd = Math.min(needed, canAfford);
+  state.credits -= toAdd * fuelCost;
+  state.fuel += toAdd;
+  showToast(`⛽ Refuelled +${toAdd} jumps`);
+  document.getElementById("hub-credits").textContent = state.credits.toLocaleString()+" Cr";
+  updateHeaderRepairButtons();
 }
 
 // ── HANGAR ───────────────────────────────────────────────────────────────────
@@ -91,20 +122,18 @@ function renderCargo(){
   const el=document.getElementById("cargo-content");
   const cargo=state.cargo||{};
   const entries=Object.entries(cargo).filter(([,qty])=>qty>0);
-  const isPlanet=state.dockedAt==="planet";
-  const cost1=isPlanet?80:50, cost2=isPlanet?280:200;
 
   let html=`
+    <div class="hub-back-bar">
+      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
+      <span class="hub-breadcrumb">HUB <span>/ HANGAR / CARGO BAY</span></span>
+    </div>
     <div class="cargo-ship-status">
       <div class="cargo-stat"><span class="cs-label">SHIP</span><span class="cs-val">${player.shipType||"Shuttle"}</span></div>
       <div class="cargo-stat"><span class="cs-label">HULL</span><span class="cs-val">${Math.ceil(player.hull)}/${player.maxHull}</span></div>
       <div class="cargo-stat"><span class="cs-label">SHIELD</span><span class="cs-val">${Math.ceil(player.shield)}/${player.maxShield}</span></div>
       <div class="cargo-stat"><span class="cs-label">FUEL</span><span class="cs-val">${state.fuel}/${state.maxFuel}</span></div>
       <div class="cargo-stat"><span class="cs-label">KILLS</span><span class="cs-val">${state.kills||0}</span></div>
-    </div>
-    <div class="cargo-repair-row">
-      <button class="hub-action-btn" id="cargo-rep-small" ${state.credits<cost1||player.hull>=player.maxHull?"disabled":""} onclick="doRepair('small')">⚙ REPAIR +30 HULL — ${cost1} Cr</button>
-      <button class="hub-action-btn" id="cargo-rep-full" ${state.credits<cost2||player.hull>=player.maxHull?"disabled":""} onclick="doRepair('full')">⚙ FULL REPAIR — ${cost2} Cr</button>
     </div>
     <div class="cargo-section-title">CARGO HOLD</div>
   `;
@@ -144,11 +173,17 @@ function doRepair(type){
   const cost1=isPlanet?80:50, cost2=isPlanet?280:200;
   if(type==="small"&&state.credits>=cost1&&player.hull<player.maxHull){
     state.credits-=cost1; player.hull=Math.min(player.maxHull,player.hull+30);
+    showToast(`⚙ Repaired +30 hull`);
   } else if(type==="full"&&state.credits>=cost2&&player.hull<player.maxHull){
     state.credits-=cost2; player.hull=player.maxHull;
+    showToast(`⚙ Hull fully repaired`);
   }
-  renderCargo();
   document.getElementById("hub-credits").textContent=state.credits.toLocaleString()+" Cr";
+  document.getElementById("hub-hull-val").textContent=Math.ceil(player.hull)+"/"+player.maxHull;
+  const pct=Math.round(player.hull/player.maxHull*100);
+  document.getElementById("hub-hull-bar").style.width=pct+"%";
+  document.getElementById("hub-hull-bar").style.background=pct>60?"#4aff9a":pct>30?"#ffcc44":"#ff4444";
+  updateHeaderRepairButtons();
 }
 
 function swapToStoredShip(idx){
@@ -186,37 +221,46 @@ const MOD_SLOTS=[
   {id:"afterburner",    label:"AFTERBURNER",    side:"right", desc:"Emergency boost system. Enables burst speed at the cost of fuel."},
 ];
 
+const SLOT_ICONS = {
+  cockpit:"◈", left_weapon:"◁", right_weapon:"▷", forward_weapon:"△",
+  scanner:"◉", shields:"⬡", engines:"⊕", afterburner:"⊗",
+  exotic_0:"✦", exotic_1:"✦", exotic_2:"✦", exotic_3:"✦",
+};
+
 function renderMods(){
   const mods=player.mods||{};
-  const leftSlots=MOD_SLOTS.filter(s=>s.side==="left");
-  const rightSlots=MOD_SLOTS.filter(s=>s.side==="right");
+  const hullPct=Math.round(player.hull/player.maxHull*100);
+  const shdPct=player.maxShield>0?Math.round(player.shield/player.maxShield*100):0;
+  const spdPct=Math.round(Math.min(player.speed/5,1)*100);
+  const dmgPct=Math.round(Math.min((player.damage||12)/30,1)*100);
 
   const makeSlot=(slot)=>{
     const mod=mods[slot.id];
     const filled=mod&&mod.name;
+    const icon=SLOT_ICONS[slot.id]||"+";
     return `<div class="mod-slot${filled?" filled":""}" onclick="selectModSlot('${slot.id}')" id="modslot-${slot.id}">
-      <div class="mod-slot-label">${slot.label}</div>
-      <div class="mod-slot-inner">${filled
-        ?`<div class="mod-installed"><div class="mod-name">${mod.name}</div></div>`
-        :`<div class="mod-empty-icon">+</div>`}
+      <div class="mod-slot-icon">${icon}</div>
+      <div class="mod-slot-left">
+        <div class="mod-slot-label">${slot.label}</div>
+        <div class="mod-slot-value${filled?"":" empty"}">${filled?mod.name:"— empty —"}</div>
       </div>
     </div>`;
   };
 
   let exoticHTML="";
   for(let i=0;i<4;i++){
-    exoticHTML+=makeSlot({id:`exotic_${i}`,label:`EXOTIC ${i+1}`,side:"exotic",desc:"Exotic module slot. Houses rare and unique ship enhancement modules."});
+    exoticHTML+=makeSlot({id:`exotic_${i}`,label:`EXOTIC ${i+1}`,side:"exotic",desc:"Exotic module slot."});
   }
 
-  const hullPct=Math.round(player.hull/player.maxHull*100);
-  const shdPct=player.maxShield>0?Math.round(player.shield/player.maxShield*100):0;
-  const spdPct=Math.round(Math.min(player.speed/5,1)*100);
-
   document.getElementById("hangar-mods-panel").innerHTML=`
-    <div class="mods-layout">
-      <div class="mods-col mods-col-left">${leftSlots.map(makeSlot).join("")}</div>
-      <div class="mods-center">
-        <div class="mods-ship-display">
+    <div class="hub-back-bar">
+      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
+      <button class="hub-back-btn" onclick="switchHangarTab('cargo')">← HANGAR</button>
+      <span class="hub-breadcrumb">HUB <span>/ HANGAR / MODIFICATIONS</span></span>
+    </div>
+    <div class="mods-top-row">
+      <div class="mods-ship-card">
+        <div class="mods-ship-img-wrap">
           <canvas id="mods-ship-canvas" width="200" height="200"></canvas>
         </div>
         <div class="mods-ship-name">${player.shipType||"Shuttle"}</div>
@@ -224,16 +268,19 @@ function renderMods(){
           <div class="mss-row"><span class="mss-label">HULL</span><div class="mss-bar-wrap"><div class="mss-bar" style="width:${hullPct}%;background:#4aff9a"></div></div><span class="mss-num">${Math.ceil(player.hull)}/${player.maxHull}</span></div>
           <div class="mss-row"><span class="mss-label">SHIELD</span><div class="mss-bar-wrap"><div class="mss-bar" style="width:${shdPct}%;background:#4a9eff"></div></div><span class="mss-num">${Math.ceil(player.shield)}/${player.maxShield}</span></div>
           <div class="mss-row"><span class="mss-label">SPEED</span><div class="mss-bar-wrap"><div class="mss-bar" style="width:${spdPct}%;background:#ffcc44"></div></div><span class="mss-num">${player.speed.toFixed(1)}</span></div>
+          <div class="mss-row"><span class="mss-label">DAMAGE</span><div class="mss-bar-wrap"><div class="mss-bar" style="width:${dmgPct}%;background:#ff7040"></div></div><span class="mss-num">${player.damage||12}</span></div>
         </div>
       </div>
-      <div class="mods-col mods-col-right">${rightSlots.map(makeSlot).join("")}</div>
+      <div class="mods-slots-panel">
+        ${MOD_SLOTS.map(makeSlot).join("")}
+      </div>
     </div>
     <div class="mods-exotic-row">
       <div class="mods-exotic-label">EXOTIC MODULES</div>
       <div class="mods-exotic-slots">${exoticHTML}</div>
     </div>
     <div class="mods-detail-panel" id="mods-detail">
-      <span style="color:#3a5070;font-size:12px">Select a module slot to view details.</span>
+      <span style="color:#3a5070;font-size:11px">Select a module slot to view details.</span>
     </div>
   `;
 
@@ -297,7 +344,12 @@ function drawModsShip(){
 
 function renderMissions(){
   const el=document.getElementById("missions-content");
-  let html="";
+  let html=`
+    <div class="hub-back-bar">
+      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
+      <span class="hub-breadcrumb">HUB <span>/ MISSIONS</span></span>
+    </div>
+  `;
 
   if(state.activeMission){
     const am=state.activeMission;
@@ -368,6 +420,10 @@ function completeMissionNow(){
 
 function renderTrading(){
   document.getElementById("trading-content").innerHTML=`
+    <div class="hub-back-bar">
+      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
+      <span class="hub-breadcrumb">HUB <span>/ TRADING POST</span></span>
+    </div>
     <div class="stub-panel">
       <div class="stub-icon">⬡</div>
       <div class="stub-title">TRADING POST</div>
@@ -379,7 +435,12 @@ function renderTrading(){
 
 function renderShipyard(){
   const has=SYSTEMS[systemKey].hasShipyard;
-  document.getElementById("shipyard-content").innerHTML=has?`
+  document.getElementById("shipyard-content").innerHTML=`
+    <div class="hub-back-bar">
+      <button class="hub-back-btn" onclick="hubOpen(null)">← HUB</button>
+      <span class="hub-breadcrumb">HUB <span>/ SHIPYARD</span></span>
+    </div>
+    ` + (has?`
     <div class="stub-panel">
       <div class="stub-icon">🛸</div>
       <div class="stub-title">SHIPYARD</div>
@@ -389,7 +450,7 @@ function renderShipyard(){
       <div class="stub-icon">✕</div>
       <div class="stub-title">NO SHIPYARD HERE</div>
       <div class="stub-desc">Travel to a major system to purchase ships and upgrades.</div>
-    </div>`;
+    </div>`);
 }
 
 // ── GALAXY MAP ───────────────────────────────────────────────────────────────
@@ -632,10 +693,16 @@ function renderGalaxyMap(){
   };
 }
 
-// ── SAVE / QUIT ──────────────────────────────────────────────────────────────
+// ── MAIN MENU ────────────────────────────────────────────────────────────────
 
-function hubSaveAndQuit(){
+function hubMainMenu(){
   saveCurrentPilot("manual");
+  // Close dock screen
+  document.getElementById("stationscreen").classList.remove("active");
+  document.getElementById("ui").classList.remove("docked");
+  state.dockedAt = null;
+  // Show start screen
+  document.getElementById("startscreen").style.display = "flex";
   showToast("✓ Game saved.");
 }
 
