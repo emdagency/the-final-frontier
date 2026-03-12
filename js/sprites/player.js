@@ -10,23 +10,23 @@ const SHIP_RENDER_W = 160;
 
 // Main engine nozzles at rear (relative to ship center, render space)
 const NOZZLES = [
-  { x: -19.1, y: 59.1 },  // left engine
-  { x:   0.0, y: 62.2 },  // center engine
-  { x: +19.1, y: 59.1 },  // right engine
+  { x: -21.2, y: 67.0 },  // left engine
+  { x:  -0.2, y: 68.0 },  // center engine
+  { x: +21.4, y: 67.0 },  // right engine
 ];
 
 // Retro thrusters on wings (activate on brake/reverse)
 const RETRO_THRUSTERS = [
-  { x: -18.9, y: -24.1 },  // left wing
-  { x:  18.6, y: -24.4 },  // right wing
+  { x: -23.0, y: -28.8 },  // left wing retro
+  { x: +23.1, y: -29.1 },  // right wing retro
 ];
 
 // Weapon ports — left_wing and right_wing are default equipped
 // forward_nose is an upgrade slot, locked at start
 const WEAPON_PORTS = {
-  forward_nose: { x:  -0.3, y: -60.0, defaultEquipped: false },
-  left_wing:    { x: -25.7, y: -19.9, defaultEquipped: true  },
-  right_wing:   { x:  25.2, y: -20.1, defaultEquipped: true  },
+  forward_nose: { x:  -0.1, y: -73.0, defaultEquipped: false },
+  left_wing:    { x: -31.4, y: -23.6, defaultEquipped: true  },
+  right_wing:   { x: +31.3, y: -23.9, defaultEquipped: true  },
 };
 
 // Main engine flame config
