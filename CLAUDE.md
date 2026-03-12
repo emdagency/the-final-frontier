@@ -123,3 +123,76 @@ Edit `audio.js` — all audio uses Web Audio API (no external files).
 ## GitHub Pages
 
 Repo is deployed via GitHub Pages from the `main` branch root. After any commit, changes go live within ~30 seconds. No build step needed.
+
+---
+
+## Ship Sprite System (player.js)
+
+### How it works
+The player ship sprite is a base64-encoded PNG string embedded directly in `js/sprites/player.js`. It is loaded once at startup into an `Image` object and drawn each frame via `drawPlayerShip()` in `render.js`.
+
+Key constants in `player.js`:
+- `SHIP_B64` — the base64 image string
+- `SHIP_RENDER_H / SHIP_RENDER_W` — render size in pixels (currently 120×120)
+- `NOZZLES[]` — positions of rear engine nozzles (for flame effects), relative to ship center in render space
+- `RETRO_THRUSTERS[]` — positions of wing retro thrusters (for brake glow)
+- `WEAPON_PORTS{}` — positions of gun hardpoints; `defaultEquipped: true` means active from the start
+- `FLAME_CFG` — flame length, width, colors (`colorInner` / `colorOuter`), flicker amplitude
+- `RETRO_CFG` — retro glow radius and colors (`colorInner` / `colorOuter`)
+- `WING_GUN_CONVERGENCE` — bullet angle toe-in (radians)
+
+### How the ship is rendered (render.js)
+`drawPlayerShip()` draws in this order:
+1. Engine flame plumes (from `NOZZLES`) when thrusting
+2. Retro glow dots (from `RETRO_THRUSTERS`) when braking
+3. Ship sprite using **`screen` blend mode** to eliminate black background
+
+The `screen` blend mode is critical — it mathematically eliminates pure black pixels at draw time, so the sprite does not need a transparent PNG. A black-background PNG works perfectly.
+
+### Replacing the ship sprite
+
+**Recommended workflow:**
+1. Source or create a ship image with a **pure black background** (black = `#000000`)
+2. Run this Python script to convert it to base64 and inject it into `player.js`:
+
+```python
+import base64, re
+
+with open("your-ship.png", "rb") as f:
+    png_bytes = f.read()
+
+data_uri = "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
+
+with open("js/sprites/player.js") as f:
+    content = f.read()
+
+new_content = re.sub(
+    r'(const SHIP_B64\s*=\s*")[^"]*(")',
+    lambda m: m.group(1) + data_uri + m.group(2),
+    content
+)
+
+with open("js/sprites/player.js", "w") as f:
+    f.write(new_content)
+```
+
+3. After changing `player.js`, bump the cache-bust version in `index.html`:
+```html
+<!-- Change ?v=N to the next number each time player.js is updated -->
+<script src="js/sprites/player.js?v=5"></script>
+```
+This forces all browsers and devices to fetch the new file immediately.
+
+**Important:** PNG transparency is NOT required because `render.js` uses `screen` blend mode. A black background PNG works fine and is easier to produce.
+
+**Do NOT use JPEG** — JPEG compression artifacts create visible fringes at blend time. Always use PNG.
+
+### Nozzle / weapon port offsets
+Offsets in `player.js` are in **render space** (pixels, relative to ship center at 0,0, with ship pointing up). To recalculate offsets for a new sprite:
+- Ship renders at `SHIP_RENDER_H × SHIP_RENDER_W` pixels
+- Scale factor = `SHIP_RENDER_H / original_image_height`
+- Offset = `(pixel_position_in_source_image - image_center) × scale_factor`
+
+### Cache busting
+Any time `player.js` is changed, increment the `?v=N` query string on its `<script>` tag in `index.html`. This is the only reliable way to force all browsers and devices (including mobile) to load the new version.
+
