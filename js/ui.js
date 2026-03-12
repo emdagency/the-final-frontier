@@ -754,3 +754,16 @@ function getModsShipImg(){
 
 function renderStation(){ hubOpen(null); }
 function renderDockScreen(){ hubOpen(null); }
+
+// ── PILOT NAME INPUT WIRING ───────────────────────────────────────────────────
+
+const newPilotInput = document.getElementById("new-pilot-name");
+const newPilotBtn   = document.getElementById("new-pilot-btn");
+if(newPilotInput && newPilotBtn){
+  newPilotInput.addEventListener("input", ()=>{
+    newPilotBtn.disabled = newPilotInput.value.trim().length === 0;
+  });
+  newPilotInput.addEventListener("keydown", e=>{
+    if(e.key==="Enter" && newPilotInput.value.trim()) createNewPilot();
+  });
+}

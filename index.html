@@ -405,6 +405,14 @@
 .fc-desc { font-size:10px; color:#4a6080; line-height:1.5; }
 .fc-owned { font-size:9px; letter-spacing:2px; color:#ffcc44; margin-top:4px; }
 
+/* ── VERSION TAG ────────────────────────────────────────────────────────── */
+#version-tag {
+  position:fixed; bottom:6px; left:8px; z-index:9999;
+  font-family:'Courier New',monospace; font-size:9px;
+  color:rgba(255,255,255,0.18); letter-spacing:1px;
+  pointer-events:none; user-select:none;
+}
+
 /* ── SCROLLBAR ──────────────────────────────────────────────────────────── */
 #stationscreen ::-webkit-scrollbar { width:4px; }
 #stationscreen ::-webkit-scrollbar-track { background:#060c14; }
@@ -415,7 +423,7 @@
 <body>
 
 <!-- Warp arrival overlay -->
-<div id="warpoverlay"></div>
+<div id="version-tag">v0.10</div>
 <div id="jump-effect-overlay">
   <div class="jump-text-line" id="jet-line1" style="font-size:11px;opacity:0.6">JUMP DRIVE SPOOLING</div>
   <div class="jump-text-line" id="jet-line2" style="font-size:22px;font-weight:bold"></div>
@@ -637,7 +645,7 @@
 <script src="js/engine.js?v=2"></script>
 <script src="js/render.js?v=6"></script>
 <script src="js/input.js"></script>
-<script src="js/ui.js?v=9"></script>
+<script src="js/ui.js?v=10"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
