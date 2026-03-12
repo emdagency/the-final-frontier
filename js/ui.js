@@ -408,19 +408,25 @@ function completeMissionNow(){
 
 function renderFactions(){
   const el=document.getElementById("factions-content");
+  if(!el) return;
   const sysFaction=SYSTEMS[systemKey].faction;
-  let html=`
-    <div class="factions-grid">
-  `;
+
+  const ownedByFaction={};
+  Object.keys(state.ownedStations||{}).forEach(sk=>{
+    const f=SYSTEMS[sk]&&SYSTEMS[sk].faction;
+    if(f) ownedByFaction[f]=(ownedByFaction[f]||0)+1;
+  });
+
+  let html=`<div class="mc-section-title">FACTION STANDING — ${SYSTEMS[systemKey].name.toUpperCase()}</div><div class="factions-grid">`;
 
   Object.entries(state.reputation).forEach(([faction, rep])=>{
-    let statusLabel="NEUTRAL", statusColor="#8899aa", statusDesc="No standing established.";
+    let statusLabel="NEUTRAL", statusColor="#8899aa", statusDesc="No standing established with this faction.";
     if(rep<=REP_ENEMY_THRESHOLD){
       statusLabel="ENEMY"; statusColor="#ff2222";
       statusDesc="This faction will attack you on sight.";
     } else if(rep<=REP_HOSTILE_THRESHOLD){
       statusLabel="HOSTILE"; statusColor="#ff6644";
-      statusDesc="This faction is suspicious of you. Patrols may attack.";
+      statusDesc="Patrols are suspicious of you and may attack.";
     } else if(rep>30){
       statusLabel="ALLIED"; statusColor="#4aff9a";
       statusDesc="This faction considers you a trusted ally.";
@@ -428,27 +434,21 @@ function renderFactions(){
       statusLabel="FRIENDLY"; statusColor="#4aff9a";
       statusDesc="This faction looks favourably upon you.";
     }
-
-    const isCurrent = faction===sysFaction;
-    const barPct = Math.round(Math.min(Math.max((rep+100)/200,0),1)*100);
-    const factionColor = FACTION_COLORS[faction]||"#aaaaaa";
-    const ownedCount = Object.values(state.ownedStations||{}).filter(v=>v===faction).length;
-
-    html+=`
-      <div class="faction-card${isCurrent?" current-faction":""}">
-        <div class="fc-header">
-          <div class="fc-name" style="color:${factionColor}">${faction.toUpperCase()}</div>
-          <div class="fc-status" style="color:${statusColor}">${statusLabel}</div>
-        </div>
-        ${isCurrent?`<div class="fc-location-badge">◆ CURRENT SYSTEM</div>`:""}
-        <div class="fc-rep-bar-wrap">
-          <div class="fc-rep-bar" style="width:${barPct}%;background:${statusColor}44;border-right:2px solid ${statusColor}"></div>
-        </div>
-        <div class="fc-rep-num" style="color:${statusColor}">${rep>0?"+":""}${rep}</div>
-        <div class="fc-desc">${statusDesc}</div>
-        ${ownedCount>0?`<div class="fc-owned">★ ${ownedCount} OWNED STATION${ownedCount!==1?"S":""}</div>`:""}
+    const isCurrent=faction===sysFaction;
+    const barPct=Math.round(Math.min(Math.max((rep+100)/200,0),1)*100);
+    const factionColor=FACTION_COLORS[faction]||"#aaaaaa";
+    const ownedCount=ownedByFaction[faction]||0;
+    html+=`<div class="faction-card${isCurrent?" current-faction":""}">
+      <div class="fc-header">
+        <div class="fc-name" style="color:${factionColor}">${faction.toUpperCase()}</div>
+        <div class="fc-status" style="color:${statusColor}">${statusLabel}</div>
       </div>
-    `;
+      ${isCurrent?`<div class="fc-location-badge">◆ CURRENT SYSTEM</div>`:""}
+      <div class="fc-rep-bar-wrap"><div class="fc-rep-bar" style="width:${barPct}%;background:${statusColor}44;border-right:2px solid ${statusColor}"></div></div>
+      <div class="fc-rep-num" style="color:${statusColor}">${rep>0?"+":""}${rep}</div>
+      <div class="fc-desc">${statusDesc}</div>
+      ${ownedCount>0?`<div class="fc-owned">★ ${ownedCount} OWNED STATION${ownedCount!==1?"S":""}</div>`:""}
+    </div>`;
   });
 
   html+=`</div>`;
