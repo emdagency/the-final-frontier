@@ -407,10 +407,11 @@
 
 /* ── VERSION TAG ────────────────────────────────────────────────────────── */
 #version-tag {
-  position:fixed; bottom:6px; left:8px; z-index:9999;
-  font-family:'Courier New',monospace; font-size:9px;
-  color:rgba(255,255,255,0.18); letter-spacing:1px;
+  position:fixed; bottom:8px; left:10px; z-index:9999;
+  font-family:'Courier New',monospace; font-size:11px;
+  color:rgba(100,180,255,0.6); letter-spacing:2px;
   pointer-events:none; user-select:none;
+  text-shadow: 0 0 8px rgba(100,180,255,0.4);
 }
 
 /* ── SCROLLBAR ──────────────────────────────────────────────────────────── */
@@ -423,7 +424,7 @@
 <body>
 
 <!-- Warp arrival overlay -->
-<div id="version-tag">v0.10</div>
+<div id="version-tag">v0.12</div>
 <div id="jump-effect-overlay">
   <div class="jump-text-line" id="jet-line1" style="font-size:11px;opacity:0.6">JUMP DRIVE SPOOLING</div>
   <div class="jump-text-line" id="jet-line2" style="font-size:22px;font-weight:bold"></div>
@@ -448,7 +449,7 @@
     <div class="new-pilot-form">
       <div class="new-pilot-input-row">
         <div class="new-pilot-prefix">Capt.</div>
-        <input class="new-pilot-input" id="new-pilot-name" type="text" maxlength="24" placeholder="Enter your name..." autocomplete="off" spellcheck="false">
+        <input class="new-pilot-input" id="new-pilot-name" type="text" maxlength="24" placeholder="Enter your name..." autocomplete="off" spellcheck="false" oninput="document.getElementById('new-pilot-btn').disabled=this.value.trim().length===0">
       </div>
       <button class="new-pilot-create" id="new-pilot-btn" disabled onclick="createNewPilot()">⬡ BEGIN JOURNEY</button>
     </div>
