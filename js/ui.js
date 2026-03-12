@@ -735,8 +735,8 @@ function hubMainMenu(){
   document.getElementById("ui").classList.remove("docked");
   state.dockedAt = null;
   gameMode = "menu";
-  document.getElementById("startscreen").style.display = "flex";
   showToast("✓ Game saved.");
+  if(typeof showStartScreen==="function") showStartScreen();
 }
 
 // ── MODS SHIP IMAGE ─────────────────────────────────────────────────────────
