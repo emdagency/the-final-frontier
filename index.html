@@ -10,6 +10,284 @@
 <meta name="theme-color" content="#060c14">
 <title>The Final Frontier</title>
 <link rel="stylesheet" href="styles.css">
+<style>
+/* ── HUB SCREEN ─────────────────────────────────────────────────────────── */
+#stationscreen {
+  display:none; position:fixed; inset:0; z-index:100;
+  background:#060c14;
+  flex-direction:column;
+  font-family:'Courier New',monospace;
+  color:#c0d8ff;
+  overflow:hidden;
+}
+#stationscreen.active { display:flex; }
+
+#hub-bg {
+  position:absolute; inset:0; z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, #0a1a2e 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, #0a1624 0%, transparent 60%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, #0d1e3011 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, #0d1e3011 40px);
+  background-color:#060c14;
+}
+#hub-scanlines {
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+}
+
+/* ── HEADER ─────────────────────────────────────────────────────────────── */
+#hub-header {
+  position:relative; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 24px 12px;
+  border-bottom:1px solid #1a3050;
+  background:linear-gradient(180deg,#0a1624 0%,transparent 100%);
+}
+#hub-location {
+  font-size:20px; font-weight:bold; letter-spacing:3px;
+  color:#c0d8ff; text-shadow:0 0 20px #4a9eff44;
+}
+#hub-faction { font-size:10px; letter-spacing:2px; margin-top:3px; opacity:0.8; }
+
+#hub-header-right { display:flex; align-items:center; gap:24px; }
+#hub-credits-display { text-align:right; }
+#hub-credits-label { display:block; font-size:9px; letter-spacing:2px; color:#3a6090; }
+#hub-credits { font-size:18px; color:#ffcc44; letter-spacing:1px; }
+#hub-hull-display { text-align:right; min-width:130px; }
+#hub-hull-label { display:block; font-size:9px; letter-spacing:2px; color:#3a6090; margin-bottom:5px; }
+#hub-hull-bar-wrap { height:4px; background:#0d1e30; border-radius:2px; overflow:hidden; }
+#hub-hull-bar { height:100%; border-radius:2px; transition:width 0.3s, background 0.3s; width:100%; }
+
+/* ── NAV BAR ────────────────────────────────────────────────────────────── */
+#hub-nav {
+  position:relative; z-index:10;
+  display:flex; align-items:center; gap:4px;
+  padding:8px 24px;
+  border-bottom:1px solid #1a3050;
+  background:#060e18;
+}
+#hub-nav-spacer { flex:1; }
+.hub-nav-btn {
+  padding:7px 16px; font-family:'Courier New',monospace;
+  font-size:10px; letter-spacing:2px; font-weight:bold;
+  background:transparent; border:1px solid #1a3050;
+  color:#4a7090; cursor:pointer; transition:all 0.15s;
+  clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);
+}
+.hub-nav-btn:hover { background:#0d2040; color:#c0d8ff; border-color:#2a5080; }
+.hub-nav-btn.active { background:#0d2040; color:#4a9eff; border-color:#4a9eff88; }
+.hub-nav-btn.secondary { color:#3a5570; }
+.hub-nav-btn.secondary:hover { color:#8aaacc; }
+.hub-nav-btn.launch {
+  background:#1a3a20; color:#4aff9a; border-color:#4aff9a66;
+  padding:7px 22px;
+}
+.hub-nav-btn.launch:hover { background:#2a4a30; border-color:#4aff9a; }
+
+/* ── PANEL AREA ─────────────────────────────────────────────────────────── */
+#hub-main, #hub-panel-hangar, #hub-panel-trading,
+#hub-panel-missions, #hub-panel-shipyard {
+  position:relative; z-index:10;
+  flex:1; overflow-y:auto; padding:24px;
+  display:flex; flex-direction:column;
+}
+
+/* ── MAIN HUB LANDING ───────────────────────────────────────────────────── */
+#hub-main { align-items:center; justify-content:center; gap:32px; }
+.hub-welcome { text-align:center; }
+.hw-title { font-size:24px; letter-spacing:6px; color:#4a9eff; margin-bottom:8px; }
+.hw-sub { font-size:11px; letter-spacing:2px; color:#3a6090; }
+
+.hub-service-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:16px;
+  width:100%; max-width:900px;
+}
+.hub-service-card {
+  background:#080f1a; border:1px solid #1a3050;
+  padding:28px 20px; text-align:center; cursor:pointer;
+  transition:all 0.2s;
+  clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);
+}
+.hub-service-card:hover { background:#0d1e34; border-color:#4a9eff66; transform:translateY(-2px); }
+.hsc-icon { font-size:28px; margin-bottom:12px; color:#4a9eff; }
+.hsc-title { font-size:12px; letter-spacing:3px; color:#c0d8ff; margin-bottom:8px; }
+.hsc-desc { font-size:10px; color:#3a6090; line-height:1.5; }
+
+/* ── HANGAR TABS ────────────────────────────────────────────────────────── */
+#hub-panel-hangar { padding:0; overflow:hidden; }
+#hangar-tabs {
+  display:flex; gap:0; border-bottom:1px solid #1a3050;
+  background:#060e18; flex-shrink:0;
+}
+.hangar-tab {
+  padding:12px 28px; font-family:'Courier New',monospace;
+  font-size:11px; letter-spacing:2px; background:transparent;
+  border:none; border-bottom:2px solid transparent;
+  color:#3a6090; cursor:pointer; transition:all 0.15s;
+}
+.hangar-tab:hover { color:#c0d8ff; }
+.hangar-tab.active { color:#4a9eff; border-bottom-color:#4a9eff; background:#080f1a; }
+
+#hangar-cargo-panel { flex:1; overflow-y:auto; padding:20px 24px; }
+#hangar-mods-panel {
+  flex:1; overflow-y:auto; padding:20px 24px;
+  display:flex; flex-direction:column; gap:16px;
+}
+
+/* ── CARGO BAY ──────────────────────────────────────────────────────────── */
+.cargo-ship-status {
+  display:flex; gap:0; border:1px solid #1a3050;
+  background:#080f1a; margin-bottom:12px;
+}
+.cargo-stat {
+  flex:1; text-align:center; padding:10px 8px;
+  border-right:1px solid #1a3050;
+}
+.cargo-stat:last-child { border-right:none; }
+.cs-label { display:block; font-size:8px; letter-spacing:2px; color:#3a6090; margin-bottom:4px; }
+.cs-val { font-size:14px; color:#c0d8ff; }
+
+.cargo-repair-row { display:flex; gap:8px; margin-bottom:16px; }
+
+.cargo-section-title {
+  font-size:9px; letter-spacing:3px; color:#3a6090;
+  border-bottom:1px solid #1a3050; padding-bottom:6px; margin-bottom:10px;
+}
+.cargo-empty { color:#2a4060; font-size:11px; padding:12px 0; font-style:italic; }
+
+.cargo-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.cargo-item {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:#0a1624; border:1px solid #1a3050;
+  padding:8px 12px; min-width:140px;
+}
+.ci-name { font-size:11px; color:#c0d8ff; }
+.ci-qty { font-size:11px; color:#ffcc44; }
+
+.stored-ship-row {
+  display:flex; align-items:center; justify-content:space-between;
+  background:#080f1a; border:1px solid #1a3050;
+  padding:12px 14px; margin-bottom:6px;
+}
+.ss-info { display:flex; flex-direction:column; gap:3px; }
+.ss-name { font-size:13px; color:#c0d8ff; letter-spacing:1px; }
+.ss-stats { font-size:10px; color:#4a7090; }
+
+/* ── ACTION BUTTONS ─────────────────────────────────────────────────────── */
+.hub-action-btn {
+  padding:8px 16px; font-family:'Courier New',monospace;
+  font-size:10px; letter-spacing:2px;
+  background:#0a1a2e; border:1px solid #2a5080;
+  color:#4a9eff; cursor:pointer; transition:all 0.15s;
+}
+.hub-action-btn:hover:not(:disabled) { background:#102040; border-color:#4a9eff; }
+.hub-action-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.hub-action-btn.green { color:#4aff9a; border-color:#2a5a30; background:#081a0e; }
+.hub-action-btn.green:hover:not(:disabled) { background:#102a18; border-color:#4aff9a; }
+.hub-action-btn.yellow { color:#ffcc44; border-color:#5a4a10; background:#1a1400; }
+.hub-action-btn.yellow:hover:not(:disabled) { background:#2a2210; border-color:#ffcc44; }
+.hub-action-btn.danger { color:#ff5a3c; border-color:#5a2010; background:#1a0800; }
+.hub-action-btn.danger:hover:not(:disabled) { background:#2a1008; border-color:#ff5a3c; }
+
+/* ── MODIFICATIONS ──────────────────────────────────────────────────────── */
+.mods-layout {
+  display:grid; grid-template-columns:1fr 220px 1fr; gap:20px; align-items:start;
+}
+.mods-col { display:flex; flex-direction:column; gap:10px; }
+
+.mod-slot {
+  background:#080f1a; border:1px solid #1a3050;
+  padding:10px; cursor:pointer; transition:all 0.15s;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+}
+.mod-slot:hover { border-color:#2a5080; background:#0a1624; }
+.mod-slot.selected { border-color:#4a9eff; background:#0a1a30; }
+.mod-slot.filled { border-color:#4a9eff44; }
+.mod-slot-label { font-size:8px; letter-spacing:2px; color:#3a6090; margin-bottom:6px; }
+.mod-slot-inner { min-height:42px; display:flex; align-items:center; justify-content:center; }
+.mod-empty-icon { font-size:22px; color:#1a3050; }
+.mod-installed { width:100%; }
+.mod-name { font-size:11px; color:#4a9eff; letter-spacing:1px; }
+
+.mods-center { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.mods-ship-display {
+  background:#060c14; border:1px solid #1a3050;
+  padding:10px; width:200px; height:200px;
+  display:flex; align-items:center; justify-content:center;
+}
+#mods-ship-canvas { display:block; }
+.mods-ship-name { font-size:10px; letter-spacing:3px; color:#4a7090; }
+.mods-ship-stats { width:100%; display:flex; flex-direction:column; gap:5px; }
+.mss-row { display:flex; align-items:center; gap:8px; }
+.mss-label { font-size:8px; letter-spacing:1px; color:#3a6090; width:40px; }
+.mss-bar-wrap { flex:1; height:3px; background:#0d1e30; border-radius:2px; overflow:hidden; }
+.mss-bar { height:100%; border-radius:2px; }
+.mss-num { font-size:9px; color:#8aaacc; width:55px; text-align:right; }
+
+.mods-exotic-row {
+  border-top:1px solid #1a3050; padding-top:14px;
+  display:flex; flex-direction:column; gap:8px; flex-shrink:0;
+}
+.mods-exotic-label { font-size:9px; letter-spacing:3px; color:#3a6090; }
+.mods-exotic-slots { display:flex; gap:10px; }
+.mods-exotic-slots .mod-slot { flex:1; }
+
+.mods-detail-panel {
+  background:#060c14; border:1px solid #1a3050;
+  padding:14px; flex-shrink:0; min-height:80px;
+}
+.detail-slot-name { font-size:8px; letter-spacing:3px; color:#3a6090; margin-bottom:4px; }
+.detail-mod-name { font-size:14px; color:#4a9eff; letter-spacing:1px; margin-bottom:6px; }
+.detail-mod-desc { font-size:11px; color:#8aaacc; line-height:1.5; margin-bottom:8px; }
+.detail-mod-stats { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.mod-stat-chip {
+  padding:3px 8px; background:#0a1a2e; border:1px solid #2a5080;
+  font-size:9px; color:#4a9eff; letter-spacing:1px;
+}
+
+/* ── MISSIONS ───────────────────────────────────────────────────────────── */
+.mc-section-title { font-size:9px; letter-spacing:3px; color:#3a6090; margin-bottom:12px; }
+.mc-divider { border-top:1px solid #1a3050; margin:16px 0; }
+
+.mission-card {
+  background:#080f1a; border:1px solid #1a3050;
+  padding:14px; margin-bottom:10px;
+}
+.mission-card.active-mission { border-color:#ffcc4444; background:#100e00; }
+.mc-badge { font-size:8px; letter-spacing:3px; color:#ffcc44; margin-bottom:8px; }
+.mc-header { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+.mc-icon { font-size:16px; }
+.mc-title { flex:1; font-size:12px; letter-spacing:1px; }
+.mc-pay { font-size:12px; color:#4aff9a; white-space:nowrap; }
+.mc-desc { font-size:11px; color:#6a8aaa; line-height:1.5; margin-bottom:6px; }
+.mc-dest { font-size:10px; color:#4a7090; margin-bottom:10px; }
+
+.missions-empty { color:#2a4060; font-size:11px; padding:16px 0; font-style:italic; }
+
+.rep-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.rep-item {
+  display:flex; flex-direction:column; gap:3px;
+  background:#080f1a; border:1px solid #1a3050; padding:10px;
+}
+.rep-item span:first-child { font-size:9px; letter-spacing:2px; }
+.rep-item span:last-child { font-size:10px; }
+
+/* ── STUB PANELS ────────────────────────────────────────────────────────── */
+.stub-panel {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  color:#3a5070;
+}
+.stub-icon { font-size:48px; opacity:0.3; }
+.stub-title { font-size:18px; letter-spacing:4px; }
+.stub-desc { font-size:11px; text-align:center; line-height:1.8; opacity:0.7; }
+
+/* ── SCROLLBAR ──────────────────────────────────────────────────────────── */
+#stationscreen ::-webkit-scrollbar { width:4px; }
+#stationscreen ::-webkit-scrollbar-track { background:#060c14; }
+#stationscreen ::-webkit-scrollbar-thumb { background:#1a3050; border-radius:2px; }
+</style>
 </head>
 </head>
 <body>
@@ -62,52 +340,100 @@
 
 <canvas id="gameCanvas"></canvas>
 
-<!-- Station Screen (HTML overlay) -->
+<!-- Station Hub Screen -->
 <div id="stationscreen">
-  <div class="station-header">
-    <div class="station-title" id="st-title">SOL STATION</div>
-    <div class="station-sub" id="st-sub">FEDERATION SPACE</div>
-  </div>
-  <div class="station-body">
 
-    <!-- Stats -->
-    <div class="card">
-      <div class="card-title">Ship Status</div>
-      <div class="stat-grid">
-        <div class="stat-box"><div class="stat-val" id="st-hull">100</div><div class="stat-lbl">HULL</div></div>
-        <div class="stat-box"><div class="stat-val" id="st-credits">5,000</div><div class="stat-lbl">CREDITS</div></div>
-        <div class="stat-box"><div class="stat-val" id="st-fuel">10</div><div class="stat-lbl">FUEL</div></div>
-        <div class="stat-box"><div class="stat-val" id="st-kills">0</div><div class="stat-lbl">KILLS</div></div>
+  <!-- Background atmosphere layer -->
+  <div id="hub-bg"></div>
+  <div id="hub-scanlines"></div>
+
+  <!-- Header -->
+  <div id="hub-header">
+    <div id="hub-header-left">
+      <div id="hub-location">ALPHA CENTAURI STATION</div>
+      <div id="hub-faction">FEDERATION SPACE</div>
+    </div>
+    <div id="hub-header-right">
+      <div id="hub-credits-display">
+        <span id="hub-credits-label">CREDITS</span>
+        <span id="hub-credits">0 Cr</span>
+      </div>
+      <div id="hub-hull-display">
+        <span id="hub-hull-label">HULL <span id="hub-hull-val">100</span>/100</span>
+        <div id="hub-hull-bar-wrap"><div id="hub-hull-bar"></div></div>
       </div>
     </div>
-
-    <!-- Services -->
-    <div class="card">
-      <div class="card-title">Station Services</div>
-      <button class="btn green" id="btn-repair-small">⚙ Repair +30 hull — 50 Cr</button>
-      <button class="btn green" id="btn-repair-full">⚙ Full Repair — 200 Cr</button>
-      <button class="btn red" id="btn-launch">▶ Launch into Space</button>
-    </div>
-
-    <!-- Navigation -->
-    <div class="card" id="nav-card">
-      <div class="card-title">Hyperspace Navigation</div>
-      <div id="nav-list"></div>
-    </div>
-
-    <!-- Missions -->
-    <div class="card">
-      <div class="card-title">Mission Board</div>
-      <div id="missions-list"></div>
-    </div>
-
-    <!-- Reputation -->
-    <div class="card">
-      <div class="card-title">Reputation</div>
-      <div id="rep-list"></div>
-    </div>
-
   </div>
+
+  <!-- Navigation bar -->
+  <div id="hub-nav">
+    <button class="hub-nav-btn" id="hub-nav-hangar"   onclick="hubOpen('hangar')">⬡ HANGAR</button>
+    <button class="hub-nav-btn" id="hub-nav-trading"  onclick="hubOpen('trading')">⬡ TRADING</button>
+    <button class="hub-nav-btn" id="hub-nav-missions" onclick="hubOpen('missions')">⬡ MISSIONS</button>
+    <button class="hub-nav-btn" id="hub-nav-shipyard" onclick="hubOpen('shipyard')">⬡ SHIPYARD</button>
+    <div id="hub-nav-spacer"></div>
+    <button class="hub-nav-btn secondary" onclick="openGalaxyMap()">⬡ GALAXY MAP</button>
+    <button class="hub-nav-btn secondary" onclick="hubSaveAndQuit()">⬡ SAVE</button>
+    <button class="hub-nav-btn launch" onclick="launchShip()">▶ LAUNCH</button>
+  </div>
+
+  <!-- Main hub landing (shown when no panel open) -->
+  <div id="hub-main">
+    <div class="hub-welcome">
+      <div class="hw-title">DOCKING COMPLETE</div>
+      <div class="hw-sub">Select a service from the navigation bar above</div>
+    </div>
+    <div class="hub-service-grid">
+      <div class="hub-service-card" onclick="hubOpen('hangar')">
+        <div class="hsc-icon">⊕</div>
+        <div class="hsc-title">HANGAR</div>
+        <div class="hsc-desc">Cargo bay, ship modifications and stored vessels</div>
+      </div>
+      <div class="hub-service-card" onclick="hubOpen('trading')">
+        <div class="hsc-icon">⬡</div>
+        <div class="hsc-title">TRADING POST</div>
+        <div class="hsc-desc">Buy and sell resources, commodities and goods</div>
+      </div>
+      <div class="hub-service-card" onclick="hubOpen('missions')">
+        <div class="hsc-icon">◈</div>
+        <div class="hsc-title">MISSIONS</div>
+        <div class="hsc-desc">Mission board, contracts and faction standings</div>
+      </div>
+      <div class="hub-service-card" onclick="hubOpen('shipyard')">
+        <div class="hsc-icon">⊗</div>
+        <div class="hsc-title">SHIPYARD</div>
+        <div class="hsc-desc">Purchase ships and upgrade your vessel</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HANGAR PANEL -->
+  <div id="hub-panel-hangar" style="display:none">
+    <div id="hangar-tabs">
+      <button class="hangar-tab" id="hangar-tab-cargo" onclick="switchHangarTab('cargo')">CARGO BAY</button>
+      <button class="hangar-tab" id="hangar-tab-mods"  onclick="switchHangarTab('mods')">MODIFICATIONS</button>
+    </div>
+    <div id="hangar-cargo-panel">
+      <div id="cargo-content"></div>
+    </div>
+    <div id="hangar-mods-panel" style="display:none"></div>
+  </div>
+
+  <!-- TRADING PANEL -->
+  <div id="hub-panel-trading" style="display:none">
+    <div id="trading-content"></div>
+  </div>
+
+  <!-- MISSIONS PANEL -->
+  <div id="hub-panel-missions" style="display:none">
+    <div id="missions-content"></div>
+  </div>
+
+  <!-- SHIPYARD PANEL -->
+  <div id="hub-panel-shipyard" style="display:none">
+    <div id="shipyard-content"></div>
+  </div>
+
 </div>
 
 <!-- In-flight UI -->
@@ -164,7 +490,7 @@
 <script src="js/engine.js?v=2"></script>
 <script src="js/render.js?v=5"></script>
 <script src="js/input.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/ui.js?v=2"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
